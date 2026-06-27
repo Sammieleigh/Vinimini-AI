@@ -8,7 +8,7 @@ VINIMINI AI starts with Coupang sellers. The first product surface is Fashion Re
 
 ### v1
 
-- Fashion Researcher: Coupang opportunity board with TOP10 tabs, competitor thumbnails, Coupang price, reviews, rating, Opportunity Score, High Profit, Low Competition, Why Now, and STRONG BUY signals
+- Fashion Researcher: AI product planning room for Coupang sellers with TOP10 opportunity cards, product URLs, competitor analysis, review complaint TOP5, VINIMINI A/B/C thumbnail proposals, and planning actions for thumbnails, detail pages, copy, size charts, new images, and return reduction
 - CEO Dashboard
 
 ### v2
@@ -71,6 +71,18 @@ Before ending development, always complete:
 5. README update when the feature changes project behavior, roadmap, setup, or rules
 
 Do not end a work session with uncommitted or unpushed changes.
+
+## PM Direction
+
+Fashion Researcher is not a simple product list. It is an AI product planning room for Coupang sellers.
+
+Development sequence:
+
+1. Build the AI product planning room UI and data structure MVP.
+2. Complete the TOP10 card and detail panel flow with mock data.
+3. Connect real Coupang search result data after the product structure is stable.
+
+Real Coupang integration remains part of the final product goal, but the product structure comes first.
 
 ## Getting Started
 
