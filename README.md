@@ -139,6 +139,17 @@ Current Sprint 7.0 implementation:
 - The current engine uses `DEMO DATA` until live Coupang/Naver/Google sources are connected.
 - Dashboard changes stay minimal; the priority is the reusable data engine shape.
 
+Sprint 7.1 adapter structure:
+
+- `src/lib/dataAdapters/coupangPartnersAdapter.ts`: Coupang Partners product candidate adapter for product name, price, image, product URL, category, and brand when available.
+- `src/lib/dataAdapters/naverDataLabAdapter.ts`: Naver DataLab trend adapter for search trend, seasonality, and growth rate.
+- `src/lib/dataAdapters/naverSearchAdAdapter.ts`: Naver SearchAd keyword adapter for monthly search volume, competition, and related keywords.
+- `src/lib/dataAdapters/googleTrendsAdapter.ts`: Google Trends is currently `DISABLED` because an official server API is not confirmed.
+- `/api/vinimini/daily-briefing` checks the 24-hour cache before calling adapters.
+- Adapter keys are read only from `.env.local`. `.env.local` must never be pushed.
+- `.env.example` lists only the required external data adapter variables.
+- OpenAI remains disconnected in this sprint. It will be connected later only as an analysis engine, not as a data collector.
+
 The UI must always distinguish:
 
 - `LIVE DATA`: verified live external data

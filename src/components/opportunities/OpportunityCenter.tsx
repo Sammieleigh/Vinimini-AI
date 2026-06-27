@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { OpportunityCard } from "./OpportunityCard";
 import { dataEngineSources, scoreEngineSignals } from "@/lib/dailyBriefing";
+import type { DataEngineSource } from "@/lib/viniminiDataEngine";
 import type { CoupangOpportunity } from "@/lib/types";
 
 const tabs = ["오늘의 기회상품 TOP10", "저경쟁 TOP10", "고마진 TOP10", "급성장 TOP10", "리뷰개선 TOP10"];
@@ -69,7 +70,13 @@ const statusCopy: Record<CoupangDataStatus, { label: string; message: string }> 
   },
 };
 
-export function OpportunityCenter({ products }: { products: CoupangOpportunity[] }) {
+export function OpportunityCenter({
+  products,
+  dataSources = dataEngineSources,
+}: {
+  products: CoupangOpportunity[];
+  dataSources?: DataEngineSource[];
+}) {
   const [items, setItems] = useState(products);
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [category, setCategory] = useState("전체");
@@ -201,7 +208,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
                 상품 데이터 엔진과 OpenAI 분석 엔진을 분리합니다. OpenAI는 데이터를 가져오지 않고, 수집된 데이터만 분석합니다.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {["LIVE DATA", "PARTIAL DATA", "DEMO DATA"].map((label) => (
+                {["LIVE DATA", "PARTIAL DATA", "DEMO DATA", "DISABLED"].map((label) => (
                   <span key={label} className="rounded-full border border-[#E5DED5] bg-[#FBFAF7] px-3 py-1 text-xs font-semibold text-[#6F6A63]">
                     {label}
                   </span>
@@ -209,7 +216,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
               </div>
             </div>
             <div className="grid gap-3">
-              {dataEngineSources.map((source) => (
+              {dataSources.map((source) => (
                 <article key={source.name} className="grid gap-2 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
                   <p className="text-sm font-semibold text-[#111111]">{source.name}</p>
                   <p className="text-sm leading-6 text-[#6F6A63]">{source.role}</p>
