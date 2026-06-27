@@ -25,7 +25,11 @@ AI CEO Operating System
 
 This project uses GitHub as the required source of truth.
 
-Every feature must follow this flow:
+Before starting development:
+
+1. Pull the latest changes from GitHub.
+
+Every feature must follow this full flow:
 
 1. Meeting
 2. Design
@@ -37,12 +41,15 @@ Every feature must follow this flow:
 
 Never finish work with changes saved only on the local PC.
 
-After every completed feature:
+Before ending development, always complete:
 
-1. Run tests or the closest available verification.
-2. Commit the completed work.
-3. Push the commit to GitHub.
-4. Update this README when the feature changes project behavior, roadmap, setup, or rules.
+1. Build
+2. Test or the closest available verification
+3. Commit
+4. Push
+5. README update when the feature changes project behavior, roadmap, setup, or rules
+
+Do not end a work session with uncommitted or unpushed changes.
 
 ## Getting Started
 
