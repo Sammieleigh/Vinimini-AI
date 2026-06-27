@@ -84,6 +84,94 @@ Development sequence:
 
 Real Coupang integration remains part of the final product goal, but the product structure comes first.
 
+## Project Structure
+
+VINIMINI AI is developed as a multi-page product, not a single large page.
+
+Core routes:
+
+1. `/` - CEO Dashboard
+   - Good morning message
+   - Today's most important goal
+   - AI morning brief
+   - Today's CEO tasks
+   - AI executive briefing
+   - AI alerts
+   - Meeting start button
+
+2. `/opportunities` - Opportunity Center
+   - Today's opportunity product TOP10
+   - High margin TOP10
+   - Low competition TOP10
+   - Product search
+   - Product cards
+
+3. `/planning/[id]` - AI Product Planning Room
+   - AI executive 30-second summary
+   - Competitor analysis
+   - AI review complaint TOP5
+   - VINIMINI A/B/C proposal
+   - Action plan
+   - Expected result
+   - Risk analysis
+   - CEO recommendation
+   - Meeting history
+   - AI learning note
+
+Implementation rules:
+
+- Do not put the whole product into one `page.tsx`.
+- Keep pages small and route-focused.
+- Keep Dashboard, Opportunity Center, and Planning Room responsibilities clearly separated.
+- Planning Room must work like a meeting room, not a long scrolling report. Use concise tabs for summary, competitors, reviews, AI proposal, action, result, risk, meeting history, and learning.
+- Opportunity Center should feel like an AI recommendation list, not a gallery. Show recommendation score, entry difficulty, expected profitability, Why Now, and Strong Buy first.
+- Keep shared types in `src/lib/types.ts`.
+- Keep mock product and dashboard data in `src/lib/data.ts`.
+- Reuse components under `src/components/dashboard`, `src/components/opportunities`, `src/components/planning`, and `src/components/ui`.
+- Damaged backup files are used only as product structure references, never restored directly.
+
+## VINIMINI Design System
+
+VINIMINI AI is a Korean-first AI CEO Operating System for Coupang sellers. The user-facing UI language is Korean by default, while code variables and internal types remain English.
+
+The product should feel like a premium AI management dashboard that a CEO wants to open every morning.
+
+Design references:
+
+- Apple minimalism
+- Chanel-level restraint and luxury mood
+- Stripe and Linear SaaS completeness
+- Notion and Arc Browser clarity
+
+Design principles:
+
+1. Luxury Minimalism: remove unnecessary elements, keep generous spacing, use large typography, and avoid decorative noise.
+2. Decision First: every screen must help the CEO decide within 30 seconds.
+3. Premium SaaS: prioritize trust, focus, and operational clarity over visual excitement.
+4. Luxury Fashion: preserve a calm, editorial, fashion-aware atmosphere.
+
+Color philosophy:
+
+- Warm Ivory
+- Soft Black
+- Warm Gray
+- Muted Beige
+- Charcoal
+- White
+
+Avoid strong red, strong blue, loud gradients, excessive shadows, colorful dashboards, and cheap startup visuals.
+
+Card design should feel like a board report, executive meeting note, or investment memo. Motion should be limited to subtle hover, fade, and slide behavior.
+
+Brand identity rule:
+
+Every CEO Dashboard session should open with a consistent VINIMINI tone, such as:
+
+> 좋은 아침입니다, 다혜 CEO님.
+> AI 경영진이 밤사이 상품기획 회의를 완료했습니다.
+
+This repeated opening experience is part of the product brand, not just UI copy.
+
 ## Getting Started
 
 ```bash
