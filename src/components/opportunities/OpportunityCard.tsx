@@ -19,12 +19,13 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
           ) : null}
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-[#6F6A63]">{item.whyNow}</p>
+        <p className="mt-3 text-sm font-medium text-[#111111]">추천 이유: {item.reasons.slice(0, 3).join(" · ")}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-sm lg:grid-cols-1">
         <Metric label="추천도" value={`${item.opportunityScore}`} />
+        <Metric label="예상 마진" value={item.expectedMargin} />
         <Metric label="진입 난이도" value={item.entryDifficulty} />
-        <Metric label="예상 수익성" value={item.expectedMargin} />
       </div>
     </Link>
   );

@@ -127,6 +127,7 @@ Implementation rules:
 - Opportunity Center should feel like an AI recommendation list, not a gallery. Show recommendation score, entry difficulty, expected profitability, Why Now, and Strong Buy first.
 - Opportunity Center is dedicated to women's fashion on Coupang. Its core categories are today's opportunities, low competition, high margin, fast growth, and review improvement.
 - CEO Dashboard should show the most important daily work, key risk, AI executive consensus, revenue target, ad budget, expected sales volume, and weekly focus product before deep details.
+- Sprint 4.3 focuses on screen polish before real data integration: clearer AI executive briefings, easier opportunity scanning, and a planning room summary that leads with the CEO decision and next action.
 - Keep shared types in `src/lib/types.ts`.
 - Keep mock product and dashboard data in `src/lib/data.ts`.
 - Reuse components under `src/components/dashboard`, `src/components/opportunities`, `src/components/planning`, and `src/components/ui`.

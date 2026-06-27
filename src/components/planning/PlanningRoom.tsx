@@ -71,15 +71,21 @@ function SummaryTab({ product }: { product: CoupangOpportunity }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
       <section className="rounded-sm border border-[#E5DED5] bg-white p-6">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#6F6A63]">Decision Summary</p>
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#6F6A63]">AI 상품기획 회의</p>
         <h2 className="mt-4 text-3xl font-semibold tracking-normal">CEO 추천 결론</h2>
         <p className="mt-4 text-base leading-8 text-[#6F6A63]">{product.recommendation}</p>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid gap-3 sm:grid-cols-4">
           {product.reasons.map((reason) => (
             <div key={reason} className="rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 text-sm text-[#6F6A63]">
               {reason}
             </div>
           ))}
+        </div>
+        <div className="mt-6 rounded-sm border border-[#111111] bg-[#111111] p-5 text-[#F6F2EC]">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#C9BDAF]">지금 해야 할 일</p>
+          <p className="mt-3 text-sm leading-7 text-[#E8DED1]">
+            지금은 상품을 더 찾지 말고, 이 상품의 상세페이지 첫 화면과 실측표부터 확정하세요.
+          </p>
         </div>
       </section>
 
