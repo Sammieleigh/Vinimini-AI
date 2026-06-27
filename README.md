@@ -86,11 +86,12 @@ Real Coupang integration remains part of the final product goal, but the product
 
 ## Coupang Data Integration
 
-Sprint 5.0 introduces the first Coupang search data integration structure.
+Sprint 5.0 introduced the first Coupang search data integration structure. Sprint 5.1 adds the official OpenAPI-first adapter.
 
 Current implementation:
 
 - `/api/coupang/search?keyword=...` server route
+- Official Coupang OpenAPI adapter when `COUPANG_ACCESS_KEY` and `COUPANG_SECRET_KEY` are configured
 - Coupang search HTML fetch and parsing service
 - Data shape for product name, price, review count, rating, thumbnail, product URL, seller/brand placeholder, category, rocket signal, ad signal, and AI scoring fields
 - Opportunity Center search form connected to the API route
@@ -99,6 +100,15 @@ Current implementation:
 Important note:
 
 Coupang currently returns `403` to direct server-side HTML search requests in this environment. The product now has the integration structure, parser, scoring fields, and UI connection, but reliable production data ingestion should use an approved Coupang data source such as an official API credential flow or another permitted data provider.
+
+Environment variables for the official adapter:
+
+- `COUPANG_ACCESS_KEY`
+- `COUPANG_SECRET_KEY`
+- `COUPANG_VENDOR_ID` optional
+- `COUPANG_OPEN_API_PRODUCTS_PATH` optional override, defaulting to the seller products endpoint path
+
+Official OpenAPI product data is treated as the source of truth when available. VINIMINI calculates the planning fields that Coupang does not provide directly, including Opportunity Score, Entry Difficulty, Competition Level, Estimated Margin, Review Strength, and Recommendation.
 
 ## Project Structure
 

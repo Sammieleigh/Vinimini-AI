@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchCoupangSearch } from "@/lib/coupang";
+import { fetchCoupangOpenApiProducts, hasCoupangOpenApiCredentials } from "@/lib/coupangOpenApi";
 import { mapCoupangProductToOpportunity } from "@/lib/opportunityMapper";
 
 export const dynamic = "force-dynamic";
@@ -9,13 +10,14 @@ export async function GET(request: Request) {
   const keyword = searchParams.get("keyword") ?? "와이드 슬랙스";
 
   try {
-    const products = await fetchCoupangSearch(keyword);
+    const source = hasCoupangOpenApiCredentials() ? "coupang-open-api" : "coupang-html";
+    const products = source === "coupang-open-api" ? await fetchCoupangOpenApiProducts(keyword) : await fetchCoupangSearch(keyword);
     const opportunities = products.map(mapCoupangProductToOpportunity);
 
     return NextResponse.json({
       ok: true,
       keyword,
-      source: "coupang",
+      source,
       count: opportunities.length,
       products,
       opportunities,
