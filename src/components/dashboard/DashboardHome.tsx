@@ -1,5 +1,6 @@
 import { Alerts } from "./Alerts";
 import { CeoTasks } from "./CeoTasks";
+import { DailyAutoBriefing } from "./DailyAutoBriefing";
 import { DashboardKpis } from "./DashboardKpis";
 import { ExecutiveTeam } from "./ExecutiveTeam";
 import { HeroSection } from "./HeroSection";
@@ -14,6 +15,7 @@ export function DashboardHome() {
     <main className="min-h-screen bg-[#F6F2EC] text-[#111111]">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 lg:px-10">
         <HeroSection />
+        <DailyAutoBriefing />
         <DashboardKpis />
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
           <OneBigWin />

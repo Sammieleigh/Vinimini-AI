@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { OpportunityCard } from "./OpportunityCard";
+import { dataEngineSources, scoreEngineSignals } from "@/lib/dailyBriefing";
 import type { CoupangOpportunity } from "@/lib/types";
 
 const tabs = ["오늘의 기회상품 TOP10", "저경쟁 TOP10", "고마진 TOP10", "급성장 TOP10", "리뷰개선 TOP10"];
@@ -29,6 +30,20 @@ type OpenAiCheckResult = {
   blockedRole: string[];
   openAiCallCount: number;
   lastOpenAiCallAt: string | null;
+};
+type PartnersCapabilityStatus = "가능" | "불가능" | "대체 필요";
+type PartnersCapabilityReport = {
+  mode: "mock-adapter" | "credentials-ready";
+  label: "MOCK ADAPTER / NO LIVE AFFILIATE DATA" | "COUPANG PARTNERS CREDENTIALS READY";
+  summary: string;
+  requiredEnv: string[];
+  endpointsToVerify: string[];
+  capabilities: Array<{
+    item: string;
+    status: PartnersCapabilityStatus;
+    officialData: string;
+    viniminiDecision: string;
+  }>;
 };
 
 const statusCopy: Record<CoupangDataStatus, { label: string; message: string }> = {
@@ -66,6 +81,8 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
   const [dataMessage, setDataMessage] = useState(statusCopy["missing-keys"].message);
   const [isCheckingOpenAi, setIsCheckingOpenAi] = useState(false);
   const [openAiCheck, setOpenAiCheck] = useState<OpenAiCheckResult | null>(null);
+  const [isCheckingPartners, setIsCheckingPartners] = useState(false);
+  const [partnersReport, setPartnersReport] = useState<PartnersCapabilityReport | null>(null);
   const categories = useMemo(() => ["전체", ...Array.from(new Set(items.map((item) => item.category)))], [items]);
   const isLiveData = dataStatus === "live";
 
@@ -128,6 +145,17 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
     }
   };
 
+  const verifyPartnersCapability = async () => {
+    setIsCheckingPartners(true);
+    try {
+      const response = await fetch("/api/coupang/partners/capability");
+      const data = (await response.json()) as PartnersCapabilityReport;
+      setPartnersReport(data);
+    } finally {
+      setIsCheckingPartners(false);
+    }
+  };
+
   const verifyOpenAiRole = async () => {
     const keyword = query.trim() || "여성패션";
 
@@ -159,6 +187,43 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
             {autoDiscoveryKeywords.map((keyword) => (
               <span key={keyword} className="rounded-full border border-[#C9BDAF] px-3 py-1 text-xs text-[#E8DED1]">
                 {keyword}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-sm border border-[#E5DED5] bg-white p-5">
+          <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#9B948B]">VINIMINI Data Engine</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-normal">쿠팡 여성패션만 분석합니다.</h2>
+              <p className="mt-3 text-sm leading-6 text-[#6F6A63]">
+                상품 데이터 엔진과 OpenAI 분석 엔진을 분리합니다. OpenAI는 데이터를 가져오지 않고, 수집된 데이터만 분석합니다.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["LIVE DATA", "PARTIAL DATA", "DEMO DATA"].map((label) => (
+                  <span key={label} className="rounded-full border border-[#E5DED5] bg-[#FBFAF7] px-3 py-1 text-xs font-semibold text-[#6F6A63]">
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {dataEngineSources.map((source) => (
+                <article key={source.name} className="grid gap-2 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+                  <p className="text-sm font-semibold text-[#111111]">{source.name}</p>
+                  <p className="text-sm leading-6 text-[#6F6A63]">{source.role}</p>
+                  <span className="rounded-full border border-[#E5DED5] bg-white px-3 py-1 text-xs font-semibold text-[#6F6A63]">
+                    {source.status}
+                  </span>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-[#E5DED5] pt-4">
+            {scoreEngineSignals.map((signal) => (
+              <span key={signal} className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">
+                {signal}
               </span>
             ))}
           </div>
@@ -235,6 +300,63 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
           </button>
         </section>
 
+        <section className="rounded-sm border border-[#E5DED5] bg-white p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#9B948B]">Coupang Partners API Check</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-normal">쿠팡 파트너스 API로 가져올 수 있는 데이터 검증</h2>
+              <p className="mt-3 text-sm leading-6 text-[#6F6A63]">
+                API 키가 없으면 실제 호출 없이 Mock Adapter로 구조만 확인합니다. 리뷰수와 평점은 공식 상품 데이터로 확정하기 어렵기 때문에 대체 소스가 필요합니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={verifyPartnersCapability}
+              disabled={isCheckingPartners}
+              className="min-h-11 rounded-sm border border-[#111111] bg-white px-5 text-sm font-semibold text-[#111111] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCheckingPartners ? "검증 중" : "파트너스 API 검증"}
+            </button>
+          </div>
+
+          {partnersReport ? (
+            <div className="mt-5">
+              <div className="grid gap-3 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-[auto_1fr] md:items-center">
+                <span className="rounded-full border border-[#E5DED5] bg-white px-3 py-1 text-xs font-semibold text-[#6F6A63]">
+                  {partnersReport.label}
+                </span>
+                <p className="text-sm leading-6 text-[#6F6A63]">{partnersReport.summary}</p>
+              </div>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-[#E5DED5] text-xs uppercase tracking-[0.18em] text-[#9B948B]">
+                      <th className="py-3 pr-4 font-semibold">확인 항목</th>
+                      <th className="py-3 pr-4 font-semibold">결과</th>
+                      <th className="py-3 pr-4 font-semibold">공식 API 기준</th>
+                      <th className="py-3 font-semibold">VINIMINI 판단</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partnersReport.capabilities.map((capability) => (
+                      <tr key={capability.item} className="border-b border-[#E5DED5] last:border-b-0">
+                        <td className="py-4 pr-4 font-semibold text-[#111111]">{capability.item}</td>
+                        <td className="py-4 pr-4">
+                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${getCapabilityBadgeClass(capability.status)}`}>
+                            {capability.status}
+                          </span>
+                        </td>
+                        <td className="py-4 pr-4 leading-6 text-[#6F6A63]">{capability.officialData}</td>
+                        <td className="py-4 leading-6 text-[#6F6A63]">{capability.viniminiDecision}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
         <form onSubmit={searchCoupang} className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 xl:grid-cols-[1fr_auto_auto_auto_auto] xl:items-center">
           <nav className="flex gap-2 overflow-x-auto pb-1">
             {tabs.map((tab) => (
@@ -304,4 +426,10 @@ function normalizeCoupangDataStatus(status?: string): CoupangDataStatus {
   if (status === "coupang-html-403-blocked") return "blocked";
   if (status === "official-api-keys-missing") return "missing-keys";
   return "fallback";
+}
+
+function getCapabilityBadgeClass(status: PartnersCapabilityStatus) {
+  if (status === "가능") return "border-[#111111] bg-[#111111] text-[#F6F2EC]";
+  if (status === "대체 필요") return "border-[#D9C7A3] bg-[#FBFAF7] text-[#6F6A63]";
+  return "border-[#E5DED5] bg-white text-[#6F6A63]";
 }

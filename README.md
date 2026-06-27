@@ -4,6 +4,8 @@ AI CEO Operating System for Coupang Seller
 
 VINIMINI AI starts with Coupang sellers. The first product surface is Fashion Researcher: an AI system that recommends the best women's fashion products to enter this week on Coupang.
 
+Sprint 7.0 product direction: VINIMINI focuses only on Coupang women's fashion. Other shopping malls are out of scope. The product should work as an automatic CEO briefing system, not a manual search tool.
+
 ## Roadmap
 
 ### v1
@@ -109,6 +111,47 @@ Environment variables for the official adapter:
 - `COUPANG_OPEN_API_PRODUCTS_PATH` optional override, defaulting to the seller products endpoint path
 
 Official OpenAPI product data is treated as the source of truth when available. VINIMINI calculates the planning fields that Coupang does not provide directly, including Opportunity Score, Entry Difficulty, Competition Level, Estimated Margin, Review Strength, and Recommendation.
+
+## VINIMINI Data Engine
+
+VINIMINI generates a daily automatic briefing before the CEO searches anything.
+
+Target daily outputs:
+
+- Today's rising women's fashion keyword TOP10
+- Today's recommended Coupang entry product TOP10
+- Products with rising competition risk
+- This week's first product to launch
+
+Data source responsibilities:
+
+- Coupang Partners API: product name, price, image, product URL, brand, and category candidates
+- Naver DataLab: search demand, seasonality, and growth rate
+- Naver Search Ads keyword tool: monthly search volume, competition, and related keywords
+- Google Trends: trend direction and rising keyword signals
+- VINIMINI AI Score Engine: Opportunity Score, entry difficulty, estimated margin, Strong Buy, search growth, market competition, review barrier, detail page improvement potential, thumbnail improvement potential, ad efficiency, and new seller success probability
+
+Current Sprint 7.0 implementation:
+
+- `src/lib/viniminiDataEngine.ts` defines the daily Coupang women's fashion briefing structure.
+- `/api/vinimini/daily-briefing` returns the generated daily briefing.
+- The route reuses cached results for the same Korean date unless `forceRefresh=true`.
+- The current engine uses `DEMO DATA` until live Coupang/Naver/Google sources are connected.
+- Dashboard changes stay minimal; the priority is the reusable data engine shape.
+
+The UI must always distinguish:
+
+- `LIVE DATA`: verified live external data
+- `PARTIAL DATA`: some sources connected and some estimated or pending
+- `DEMO DATA`: mock data for product flow validation
+
+API usage rules:
+
+- Use cache for repeated keyword/date requests.
+- Default cache TTL is 24 hours.
+- Use `forceRefresh=true` only for intentional refresh.
+- Do not call Coupang, Naver, Google, or OpenAI APIs on every page refresh.
+- Keep Coupang data collection and OpenAI analysis separate.
 
 ## OpenAI Analysis Engine
 
