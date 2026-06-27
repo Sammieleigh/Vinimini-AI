@@ -6,7 +6,7 @@ AI CEO Operating System
 
 ### v1
 
-- Fashion Researcher
+- Fashion Researcher: luxury opportunity board with TOP10 tabs, competitor thumbnails, AI Score, Why Now, price, reviews, rating, and STRONG BUY signals
 - CEO Dashboard
 
 ### v2
