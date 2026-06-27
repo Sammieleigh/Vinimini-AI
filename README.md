@@ -110,6 +110,28 @@ Environment variables for the official adapter:
 
 Official OpenAPI product data is treated as the source of truth when available. VINIMINI calculates the planning fields that Coupang does not provide directly, including Opportunity Score, Entry Difficulty, Competition Level, Estimated Margin, Review Strength, and Recommendation.
 
+## OpenAI Analysis Engine
+
+OpenAI API is not treated as a Coupang data collector. It must not invent Coupang product names, thumbnails, review counts, ratings, or live market data.
+
+OpenAI validation rule:
+
+- OpenAI can analyze, summarize, score, and recommend actions from data VINIMINI already collected.
+- OpenAI cannot be the source of truth for live Coupang product data by itself.
+- When live Coupang data is unavailable, the UI must clearly show `DEMO DATA / NO LIVE COUPANG DATA`.
+- OpenAI API keys must be read only from `.env.local`; `.env*` is ignored by Git and must not be pushed.
+- Development default is no OpenAI call. Set `ENABLE_OPENAI_TEST=true` only when intentionally testing.
+- The server checks cache before OpenAI calls. Same keyword plus same Korean date reuses cached results for 24 hours by default.
+- `forceRefresh=true` is the only way to bypass cache.
+- OpenAI call count and last call time are logged by the server route.
+
+Environment variables for OpenAI testing:
+
+- `OPENAI_API_KEY`
+- `ENABLE_OPENAI_TEST=true`
+- `OPENAI_MODEL` optional, defaults to `gpt-4.1-mini`
+- `OPENAI_CACHE_TTL_MS` optional, defaults to 24 hours
+
 ## Project Structure
 
 VINIMINI AI is developed as a multi-page product, not a single large page.

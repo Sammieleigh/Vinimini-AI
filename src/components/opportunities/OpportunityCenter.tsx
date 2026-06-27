@@ -19,6 +19,41 @@ const autoDiscoveryKeywords = [
   "나시 니트",
 ];
 
+type CoupangDataStatus = "missing-keys" | "auth-failed" | "blocked" | "fallback" | "live";
+type OpenAiCheckResult = {
+  source: "cache" | "disabled" | "openai" | "openai-error";
+  dataLabel: "DEMO DATA / NO LIVE COUPANG DATA";
+  canOpenAiFetchLiveCoupangData: false;
+  conclusion: string;
+  allowedRole: string[];
+  blockedRole: string[];
+  openAiCallCount: number;
+  lastOpenAiCallAt: string | null;
+};
+
+const statusCopy: Record<CoupangDataStatus, { label: string; message: string }> = {
+  "missing-keys": {
+    label: "공식 API 키 없음",
+    message: "COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY가 없어 DEMO DATA를 사용합니다.",
+  },
+  "auth-failed": {
+    label: "공식 API 인증 실패",
+    message: "WING OpenAPI 인증에 실패해 DEMO DATA를 사용합니다.",
+  },
+  blocked: {
+    label: "쿠팡 검색 403 차단",
+    message: "쿠팡 검색 HTML 요청이 차단되어 fallback 데이터를 표시합니다.",
+  },
+  fallback: {
+    label: "fallback 데이터 사용 중",
+    message: "실제 쿠팡 데이터가 아니며 제품 흐름 검증용 DEMO DATA입니다.",
+  },
+  live: {
+    label: "LIVE COUPANG DATA",
+    message: "실제 쿠팡 연결 결과를 표시 중입니다.",
+  },
+};
+
 export function OpportunityCenter({ products }: { products: CoupangOpportunity[] }) {
   const [items, setItems] = useState(products);
   const [activeTab, setActiveTab] = useState(tabs[0]);
@@ -27,9 +62,12 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
   const [query, setQuery] = useState("와이드 슬랙스");
   const [localFilter, setLocalFilter] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [dataStatus, setDataStatus] = useState<"demo" | "live" | "error">("demo");
-  const [dataMessage, setDataMessage] = useState("공식 쿠팡 API 키가 없어 실제 쿠팡 데이터가 아닌 DEMO DATA를 표시 중입니다.");
+  const [dataStatus, setDataStatus] = useState<CoupangDataStatus>("missing-keys");
+  const [dataMessage, setDataMessage] = useState(statusCopy["missing-keys"].message);
+  const [isCheckingOpenAi, setIsCheckingOpenAi] = useState(false);
+  const [openAiCheck, setOpenAiCheck] = useState<OpenAiCheckResult | null>(null);
   const categories = useMemo(() => ["전체", ...Array.from(new Set(items.map((item) => item.category)))], [items]);
+  const isLiveData = dataStatus === "live";
 
   const filtered = useMemo(() => {
     const base = [...items];
@@ -52,7 +90,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
     if (!keyword) return;
 
     setIsLoading(true);
-    setDataStatus("demo");
+    setDataStatus("fallback");
     setDataMessage("쿠팡 검색 결과를 불러오는 중입니다.");
 
     try {
@@ -60,27 +98,46 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
       const data = (await response.json()) as {
         ok: boolean;
         count?: number;
+        dataStatus?: string;
+        message?: string;
         error?: string;
         opportunities?: CoupangOpportunity[];
       };
 
       if (!response.ok || !data.ok || !data.opportunities?.length) {
-        throw new Error(data.error || "쿠팡 검색 결과가 비어 있습니다.");
+        const nextStatus = normalizeCoupangDataStatus(data.dataStatus);
+        setItems(products);
+        setDataStatus(nextStatus);
+        setDataMessage(`${statusCopy[nextStatus].message} ${data.message || data.error || ""}`.trim());
+        return;
       }
 
       setItems(data.opportunities);
       setCategory("전체");
       setLocalFilter("");
       setDataStatus("live");
-      setDataMessage(`LIVE COUPANG DATA: 쿠팡 검색 결과 ${data.count ?? data.opportunities.length}개를 연결했습니다.`);
+      setDataMessage(data.message || `LIVE COUPANG DATA: 쿠팡 검색 결과 ${data.count ?? data.opportunities.length}개를 연결했습니다.`);
     } catch (error) {
       setItems(products);
-      setDataStatus("error");
+      setDataStatus("fallback");
       setDataMessage(
         `DEMO DATA: 실제 쿠팡 데이터 연결에 실패해 fallback 데이터를 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const verifyOpenAiRole = async () => {
+    const keyword = query.trim() || "여성패션";
+
+    setIsCheckingOpenAi(true);
+    try {
+      const response = await fetch(`/api/openai/coupang-data-check?keyword=${encodeURIComponent(keyword)}`);
+      const data = (await response.json()) as OpenAiCheckResult;
+      setOpenAiCheck(data);
+    } finally {
+      setIsCheckingOpenAi(false);
     }
   };
 
@@ -110,14 +167,18 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
         <div className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
           <span
             className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              dataStatus === "live"
+              isLiveData
                 ? "border-[#111111] bg-[#111111] text-[#F6F2EC]"
                 : "border-[#E5DED5] bg-[#FBFAF7] text-[#6F6A63]"
             }`}
           >
-            {dataStatus === "live" ? "LIVE COUPANG DATA" : "DEMO DATA"}
+            {isLiveData ? "LIVE COUPANG DATA" : "DEMO DATA"}
           </span>
-          <p className="text-sm leading-6 text-[#6F6A63]">{dataMessage}</p>
+          <p className="text-sm leading-6 text-[#6F6A63]">
+            <span className="font-semibold text-[#111111]">{statusCopy[dataStatus].label}</span>
+            {" · "}
+            {dataMessage}
+          </p>
           <input
             value={localFilter}
             onChange={(event) => setLocalFilter(event.target.value)}
@@ -125,6 +186,54 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
             className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition placeholder:text-[#9B948B] focus:border-[#111111] md:w-72"
           />
         </div>
+
+        <section className="grid gap-3 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-4">
+          {(["missing-keys", "auth-failed", "blocked", "fallback"] as const).map((status) => (
+            <div key={status} className="rounded-sm border border-[#E5DED5] bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9B948B]">Coupang Status</p>
+              <p className="mt-2 text-sm font-semibold text-[#111111]">{statusCopy[status].label}</p>
+              <p className="mt-2 text-xs leading-5 text-[#6F6A63]">{dataStatus === status ? "현재 상태" : "필요 시 표시"}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid gap-4 rounded-sm border border-[#E5DED5] bg-white p-5 lg:grid-cols-[1fr_auto] lg:items-start">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#9B948B]">OpenAI Data Guard</p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-normal">OpenAI는 쿠팡 데이터 수집기가 아니라 분석 엔진입니다.</h2>
+            <p className="mt-3 text-sm leading-6 text-[#6F6A63]">
+              실제 쿠팡 데이터 소스가 없으면 상품명, 썸네일, 리뷰수, 평점은 생성하지 않습니다. 현재 상태는{" "}
+              <span className="font-semibold text-[#111111]">DEMO DATA / NO LIVE COUPANG DATA</span>입니다.
+            </p>
+            {openAiCheck ? (
+              <div className="mt-4 grid gap-3 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9B948B]">Result</p>
+                  <p className="mt-2 text-sm font-semibold text-[#111111]">{openAiCheck.dataLabel}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9B948B]">Source</p>
+                  <p className="mt-2 text-sm font-semibold text-[#111111]">{openAiCheck.source}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9B948B]">OpenAI Calls</p>
+                  <p className="mt-2 text-sm font-semibold text-[#111111]">
+                    {openAiCheck.openAiCallCount}회 · {openAiCheck.lastOpenAiCallAt || "호출 없음"}
+                  </p>
+                </div>
+                <p className="text-sm leading-6 text-[#6F6A63] md:col-span-3">{openAiCheck.conclusion}</p>
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={verifyOpenAiRole}
+            disabled={isCheckingOpenAi}
+            className="min-h-11 rounded-sm border border-[#111111] bg-white px-5 text-sm font-semibold text-[#111111] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isCheckingOpenAi ? "검증 중" : "OpenAI 역할 검증"}
+          </button>
+        </section>
 
         <form onSubmit={searchCoupang} className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 xl:grid-cols-[1fr_auto_auto_auto_auto] xl:items-center">
           <nav className="flex gap-2 overflow-x-auto pb-1">
@@ -188,4 +297,11 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
       </section>
     </main>
   );
+}
+
+function normalizeCoupangDataStatus(status?: string): CoupangDataStatus {
+  if (status === "official-api-auth-failed") return "auth-failed";
+  if (status === "coupang-html-403-blocked") return "blocked";
+  if (status === "official-api-keys-missing") return "missing-keys";
+  return "fallback";
 }
