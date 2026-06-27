@@ -152,6 +152,7 @@ Implementation rules:
 - Planning Room must work like a meeting room, not a long scrolling report. Use concise tabs for summary, competitors, reviews, AI proposal, action, result, risk, meeting history, and learning.
 - Opportunity Center should feel like an AI recommendation list, not a gallery. Show recommendation score, entry difficulty, expected profitability, Why Now, and Strong Buy first.
 - Opportunity Center is dedicated to women's fashion on Coupang. Its core categories are today's opportunities, low competition, high margin, fast growth, and review improvement.
+- Sprint 6.0 changes the Opportunity Center default from user-led keyword search to AI-led daily discovery. VINIMINI should first show today's women's fashion opportunity TOP10, while manual keyword search remains a secondary tool.
 - CEO Dashboard should show the most important daily work, key risk, AI executive consensus, revenue target, ad budget, expected sales volume, and weekly focus product before deep details.
 - Sprint 4.3 focuses on screen polish before real data integration: clearer AI executive briefings, easier opportunity scanning, and a planning room summary that leads with the CEO decision and next action.
 - Keep shared types in `src/lib/types.ts`.

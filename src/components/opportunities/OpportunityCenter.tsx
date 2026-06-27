@@ -6,6 +6,18 @@ import type { CoupangOpportunity } from "@/lib/types";
 
 const tabs = ["오늘의 기회상품 TOP10", "저경쟁 TOP10", "고마진 TOP10", "급성장 TOP10", "리뷰개선 TOP10"];
 const sortOptions = ["Opportunity Score", "High Profit", "Low Competition"];
+const autoDiscoveryKeywords = [
+  "와이드 슬랙스",
+  "반팔 셋업",
+  "치마바지",
+  "린넨 팬츠",
+  "여름 원피스",
+  "냉감 티셔츠",
+  "체형커버 스커트",
+  "밴딩 팬츠",
+  "시스루 셔츠",
+  "나시 니트",
+];
 
 export function OpportunityCenter({ products }: { products: CoupangOpportunity[] }) {
   const [items, setItems] = useState(products);
@@ -32,6 +44,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
       return matchesQuery && matchesCategory;
     });
   }, [activeTab, category, items, localFilter, sortBy]);
+  const topTen = filtered.slice(0, 10);
 
   const searchCoupang = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -76,13 +89,44 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-7 px-5 py-8 sm:px-8 lg:px-10">
         <header className="border-b border-[#E5DED5] pb-8">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-[#6F6A63]">Opportunity Center</p>
-          <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-5xl">AI 추천 상품 리스트</h1>
+          <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-5xl">오늘의 여성패션 기회상품 TOP10</h1>
           <p className="mt-4 max-w-2xl text-base leading-8 text-[#6F6A63]">
-            VINIMINI는 여성패션 전문 AI입니다. 쿠팡 여성패션 안에서 이미 결론이 나온 상품부터 추천합니다.
+            VINIMINI는 사용자가 검색하기 전에 쿠팡 여성패션 시장을 먼저 탐색하고, 오늘 진입하기 좋은 상품을 CEO에게 추천합니다.
           </p>
         </header>
 
-        <form onSubmit={searchCoupang} className="grid gap-3 xl:grid-cols-[1fr_auto_auto_auto_auto] xl:items-center">
+        <section className="rounded-sm border border-[#111111] bg-[#111111] p-5 text-[#F6F2EC]">
+          <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#C9BDAF]">AI Auto Discovery</p>
+          <h2 className="mt-4 text-2xl font-semibold tracking-normal">AI가 매일 먼저 탐색하는 여성패션 키워드</h2>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {autoDiscoveryKeywords.map((keyword) => (
+              <span key={keyword} className="rounded-full border border-[#C9BDAF] px-3 py-1 text-xs text-[#E8DED1]">
+                {keyword}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <div className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+              dataStatus === "live"
+                ? "border-[#111111] bg-[#111111] text-[#F6F2EC]"
+                : "border-[#E5DED5] bg-[#FBFAF7] text-[#6F6A63]"
+            }`}
+          >
+            {dataStatus === "live" ? "LIVE COUPANG DATA" : "DEMO DATA"}
+          </span>
+          <p className="text-sm leading-6 text-[#6F6A63]">{dataMessage}</p>
+          <input
+            value={localFilter}
+            onChange={(event) => setLocalFilter(event.target.value)}
+            placeholder="현재 TOP10 안에서 필터"
+            className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition placeholder:text-[#9B948B] focus:border-[#111111] md:w-72"
+          />
+        </div>
+
+        <form onSubmit={searchCoupang} className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 xl:grid-cols-[1fr_auto_auto_auto_auto] xl:items-center">
           <nav className="flex gap-2 overflow-x-auto pb-1">
             {tabs.map((tab) => (
               <button
@@ -102,7 +146,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="쿠팡 검색 키워드"
+            placeholder="보조 검색 키워드"
             className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition placeholder:text-[#9B948B] focus:border-[#111111] lg:w-80"
           />
           <button
@@ -136,27 +180,8 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
           </select>
         </form>
 
-        <div className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <span
-            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              dataStatus === "live"
-                ? "border-[#111111] bg-[#111111] text-[#F6F2EC]"
-                : "border-[#E5DED5] bg-[#FBFAF7] text-[#6F6A63]"
-            }`}
-          >
-            {dataStatus === "live" ? "LIVE COUPANG DATA" : "DEMO DATA"}
-          </span>
-          <p className="text-sm leading-6 text-[#6F6A63]">{dataMessage}</p>
-          <input
-            value={localFilter}
-            onChange={(event) => setLocalFilter(event.target.value)}
-            placeholder="현재 리스트 안에서 필터"
-            className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition placeholder:text-[#9B948B] focus:border-[#111111] md:w-72"
-          />
-        </div>
-
         <div className="grid gap-3">
-          {filtered.map((item, index) => (
+          {topTen.map((item, index) => (
             <OpportunityCard key={item.id} item={item} index={index} />
           ))}
         </div>
