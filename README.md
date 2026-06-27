@@ -1,12 +1,14 @@
 # VINIMINI AI
 
-AI CEO Operating System
+AI CEO Operating System for Coupang Seller
+
+VINIMINI AI starts with Coupang sellers. The first product surface is Fashion Researcher: an AI system that recommends the best women's fashion products to enter this week on Coupang.
 
 ## Roadmap
 
 ### v1
 
-- Fashion Researcher: luxury opportunity board with TOP10 tabs, competitor thumbnails, AI Score, Why Now, price, reviews, rating, and STRONG BUY signals
+- Fashion Researcher: Coupang opportunity board with TOP10 tabs, competitor thumbnails, Coupang price, reviews, rating, Opportunity Score, High Profit, Low Competition, Why Now, and STRONG BUY signals
 - CEO Dashboard
 
 ### v2
@@ -24,6 +26,25 @@ AI CEO Operating System
 ## Development Rules
 
 This project uses GitHub as the required source of truth.
+
+Before implementing a new feature, run a PM meeting:
+
+1. Propose the feature direction.
+2. Explain the pros and cons.
+3. Get CEO approval.
+4. Start implementation only after approval.
+
+UI development must be preview-driven:
+
+1. PM meeting
+2. 10-minute development block
+3. Run the development server
+4. Share the preview URL
+5. Ask the CEO to review the current screen
+6. Revise based on feedback
+7. Continue the next development block after approval
+
+When a screen or UI changes, always run `npm run dev`, share the preview URL, and say: "현재 화면을 확인하세요."
 
 Before starting development:
 
