@@ -18,8 +18,10 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
             <span className="rounded-full border border-[#111111] px-3 py-1 text-xs font-medium">STRONG BUY</span>
           ) : null}
           {item.dataSource === "coupang" ? (
-            <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">쿠팡 데이터</span>
-          ) : null}
+            <span className="rounded-full border border-[#111111] bg-[#111111] px-3 py-1 text-xs text-[#F6F2EC]">LIVE COUPANG DATA</span>
+          ) : (
+            <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">DEMO DATA</span>
+          )}
           {item.isRocket ? <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">로켓</span> : null}
           {item.isAd ? <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">광고</span> : null}
         </div>

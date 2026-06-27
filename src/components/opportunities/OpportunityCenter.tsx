@@ -15,7 +15,8 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
   const [query, setQuery] = useState("와이드 슬랙스");
   const [localFilter, setLocalFilter] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [dataMessage, setDataMessage] = useState("현재는 기본 여성패션 데이터입니다. 키워드 검색 시 쿠팡 검색 결과를 불러옵니다.");
+  const [dataStatus, setDataStatus] = useState<"demo" | "live" | "error">("demo");
+  const [dataMessage, setDataMessage] = useState("공식 쿠팡 API 키가 없어 실제 쿠팡 데이터가 아닌 DEMO DATA를 표시 중입니다.");
   const categories = useMemo(() => ["전체", ...Array.from(new Set(items.map((item) => item.category)))], [items]);
 
   const filtered = useMemo(() => {
@@ -38,6 +39,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
     if (!keyword) return;
 
     setIsLoading(true);
+    setDataStatus("demo");
     setDataMessage("쿠팡 검색 결과를 불러오는 중입니다.");
 
     try {
@@ -56,11 +58,13 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
       setItems(data.opportunities);
       setCategory("전체");
       setLocalFilter("");
-      setDataMessage(`쿠팡 검색 결과 ${data.count ?? data.opportunities.length}개를 연결했습니다.`);
+      setDataStatus("live");
+      setDataMessage(`LIVE COUPANG DATA: 쿠팡 검색 결과 ${data.count ?? data.opportunities.length}개를 연결했습니다.`);
     } catch (error) {
       setItems(products);
+      setDataStatus("error");
       setDataMessage(
-        `쿠팡 데이터 연결에 실패해 기본 데이터를 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+        `DEMO DATA: 실제 쿠팡 데이터 연결에 실패해 fallback 데이터를 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
       );
     } finally {
       setIsLoading(false);
@@ -132,7 +136,16 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
           </select>
         </form>
 
-        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+        <div className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+              dataStatus === "live"
+                ? "border-[#111111] bg-[#111111] text-[#F6F2EC]"
+                : "border-[#E5DED5] bg-[#FBFAF7] text-[#6F6A63]"
+            }`}
+          >
+            {dataStatus === "live" ? "LIVE COUPANG DATA" : "DEMO DATA"}
+          </span>
           <p className="text-sm leading-6 text-[#6F6A63]">{dataMessage}</p>
           <input
             value={localFilter}
