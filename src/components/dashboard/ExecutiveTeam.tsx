@@ -9,7 +9,7 @@ const statusLabels: Record<ExecutiveStatus, string> = {
 
 export function ExecutiveTeam({ members }: { members: ExecutiveMember[] }) {
   return (
-    <SectionCard eyebrow="AI 경영진 브리핑" title="밤사이 회의 요약">
+    <SectionCard eyebrow="AI 경영진 브리핑" title="5명의 AI가 한 줄로 보고합니다.">
       <div className="mt-5 space-y-4">
         {members.map((member) => (
           <div key={member.role} className="flex items-start justify-between gap-4 border-b border-[#EFE8DE] pb-4 last:border-0 last:pb-0">

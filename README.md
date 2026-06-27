@@ -125,6 +125,8 @@ Implementation rules:
 - Keep Dashboard, Opportunity Center, and Planning Room responsibilities clearly separated.
 - Planning Room must work like a meeting room, not a long scrolling report. Use concise tabs for summary, competitors, reviews, AI proposal, action, result, risk, meeting history, and learning.
 - Opportunity Center should feel like an AI recommendation list, not a gallery. Show recommendation score, entry difficulty, expected profitability, Why Now, and Strong Buy first.
+- Opportunity Center is dedicated to women's fashion on Coupang. Its core categories are today's opportunities, low competition, high margin, fast growth, and review improvement.
+- CEO Dashboard should show the most important daily work, key risk, AI executive consensus, revenue target, ad budget, expected sales volume, and weekly focus product before deep details.
 - Keep shared types in `src/lib/types.ts`.
 - Keep mock product and dashboard data in `src/lib/data.ts`.
 - Reuse components under `src/components/dashboard`, `src/components/opportunities`, `src/components/planning`, and `src/components/ui`.

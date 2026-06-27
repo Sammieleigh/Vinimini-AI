@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { OpportunityCard } from "./OpportunityCard";
 import type { CoupangOpportunity } from "@/lib/types";
 
-const tabs = ["오늘의 기회 상품 TOP10", "고마진 TOP10", "저경쟁 TOP10"];
+const tabs = ["오늘의 기회상품 TOP10", "저경쟁 TOP10", "고마진 TOP10", "급성장 TOP10", "리뷰개선 TOP10"];
 const sortOptions = ["Opportunity Score", "High Profit", "Low Competition"];
 
 export function OpportunityCenter({ products }: { products: CoupangOpportunity[] }) {
@@ -16,9 +16,10 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
 
   const filtered = useMemo(() => {
     const base = [...products];
-    if (activeTab === "고마진 TOP10" || sortBy === "High Profit") base.sort((a, b) => b.expectedMargin.localeCompare(a.expectedMargin));
     if (activeTab === "저경쟁 TOP10" || sortBy === "Low Competition") base.sort((a, b) => a.lowCompetition.localeCompare(b.lowCompetition));
-    if (activeTab === "오늘의 기회 상품 TOP10" || sortBy === "Opportunity Score") base.sort((a, b) => b.opportunityScore - a.opportunityScore);
+    if (activeTab === "고마진 TOP10" || sortBy === "High Profit") base.sort((a, b) => b.expectedMargin.localeCompare(a.expectedMargin));
+    if (activeTab === "급성장 TOP10" || activeTab === "오늘의 기회상품 TOP10" || sortBy === "Opportunity Score") base.sort((a, b) => b.opportunityScore - a.opportunityScore);
+    if (activeTab === "리뷰개선 TOP10") base.sort((a, b) => b.reviewComplaints.length - a.reviewComplaints.length || b.opportunityScore - a.opportunityScore);
 
     return base.filter((item) => {
       const matchesQuery = item.productName.includes(query.trim());
@@ -34,7 +35,7 @@ export function OpportunityCenter({ products }: { products: CoupangOpportunity[]
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-[#6F6A63]">Opportunity Center</p>
           <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-5xl">AI 추천 상품 리스트</h1>
           <p className="mt-4 max-w-2xl text-base leading-8 text-[#6F6A63]">
-            이미 결론이 나온 상품부터 보여드립니다. 추천도, 진입 난이도, 예상 수익성만 먼저 보고 결정하세요.
+            VINIMINI는 여성패션 전문 AI입니다. 쿠팡 여성패션 안에서 이미 결론이 나온 상품부터 추천합니다.
           </p>
         </header>
 

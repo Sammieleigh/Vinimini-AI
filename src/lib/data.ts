@@ -48,39 +48,29 @@ export const ceoTasks: CeoTask[] = [
 
 export const executiveTeam: ExecutiveMember[] = [
   {
-    role: "AI CEO Advisor",
+    role: "AI CEO",
     status: "Ready",
-    briefing: "오늘은 신규 탐색보다 전환율을 올리는 한 가지 업무에 집중하세요.",
+    briefing: "오늘은 신규 탐색보다 전환율을 올리는 한 가지 업무에 집중하세요. 와이드 슬랙스 상세페이지가 최우선입니다.",
   },
   {
-    role: "AI Product Manager",
-    status: "Ready",
-    briefing: "와이드 슬랙스는 리뷰 불만을 상품 장점으로 바꾸기 좋은 기회입니다.",
-  },
-  {
-    role: "AI Marketing Director",
+    role: "AI 마케팅이사",
     status: "Warning",
-    briefing: "광고비 증액 전 썸네일 A/B 테스트를 먼저 생성하세요.",
+    briefing: "광고비 증액 전 썸네일 A/B 테스트를 먼저 생성하세요. 클릭률 검증 후 예산을 올리는 편이 안전합니다.",
   },
   {
-    role: "AI Creative Director",
+    role: "AI 상품기획이사",
     status: "Ready",
-    briefing: "첫 화면에서 핏, 원단, 실측표가 즉시 보여야 합니다.",
+    briefing: "와이드 슬랙스는 리뷰 불만을 상품 장점으로 바꾸기 좋은 기회입니다. 실측표와 기장 안내가 핵심입니다.",
   },
   {
-    role: "AI Data Analyst",
+    role: "AI 크리에이티브디렉터",
     status: "Ready",
-    briefing: "리뷰 불만은 허리, 기장, 원단 두께에 집중되어 있습니다.",
+    briefing: "첫 화면에서 핏, 원단, 실측표가 즉시 보여야 합니다. 고객이 스크롤하기 전 불안을 줄여야 합니다.",
   },
   {
-    role: "AI Finance Director",
+    role: "AI 데이터분석가",
     status: "Ready",
-    briefing: "초기 광고 일예산은 30,000원 이내로 검증하는 것이 적절합니다.",
-  },
-  {
-    role: "AI Risk Manager",
-    status: "Warning",
-    briefing: "허리와 기장 불만을 상세페이지에서 선제적으로 줄여야 합니다.",
+    briefing: "리뷰 불만은 허리, 기장, 원단 두께에 집중되어 있습니다. 상세페이지 문구와 이미지로 해결 가능합니다.",
   },
 ];
 
