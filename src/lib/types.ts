@@ -34,6 +34,11 @@ export type CoupangOpportunity = {
   reviewCount: string;
   rating: string;
   productUrl: string;
+  sellerName?: string;
+  isRocket?: boolean;
+  isRocketGrowth?: boolean;
+  isAd?: boolean;
+  dataSource?: "mock" | "coupang";
   opportunityScore: number;
   highProfit: string;
   lowCompetition: string;
@@ -74,4 +79,25 @@ export type CoupangOpportunity = {
   viniminiConcepts: ViniminiConcept[];
   recommendation: string;
   learningNote: string;
+};
+
+export type CoupangSearchProduct = {
+  id: string;
+  productName: string;
+  price: string;
+  reviewCount: string;
+  rating: string;
+  thumbnail: string;
+  productUrl: string;
+  sellerName: string;
+  category: string;
+  isRocket: boolean;
+  isRocketGrowth: boolean;
+  isAd: boolean;
+  opportunityScore: number;
+  estimatedMargin: string;
+  competitionLevel: string;
+  reviewStrength: string;
+  entryDifficulty: string;
+  recommendation: string;
 };

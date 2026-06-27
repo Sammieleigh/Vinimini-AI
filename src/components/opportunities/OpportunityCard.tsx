@@ -17,9 +17,17 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
           {item.strongBuy ? (
             <span className="rounded-full border border-[#111111] px-3 py-1 text-xs font-medium">STRONG BUY</span>
           ) : null}
+          {item.dataSource === "coupang" ? (
+            <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">쿠팡 데이터</span>
+          ) : null}
+          {item.isRocket ? <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">로켓</span> : null}
+          {item.isAd ? <span className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">광고</span> : null}
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-[#6F6A63]">{item.whyNow}</p>
         <p className="mt-3 text-sm font-medium text-[#111111]">추천 이유: {item.reasons.slice(0, 3).join(" · ")}</p>
+        <p className="mt-2 text-xs text-[#6F6A63]">
+          {item.sellerName ? `판매자/브랜드: ${item.sellerName}` : "판매자/브랜드: 분석 예정"} · {item.category}
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-sm lg:grid-cols-1">

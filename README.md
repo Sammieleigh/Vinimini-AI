@@ -84,6 +84,22 @@ Development sequence:
 
 Real Coupang integration remains part of the final product goal, but the product structure comes first.
 
+## Coupang Data Integration
+
+Sprint 5.0 introduces the first Coupang search data integration structure.
+
+Current implementation:
+
+- `/api/coupang/search?keyword=...` server route
+- Coupang search HTML fetch and parsing service
+- Data shape for product name, price, review count, rating, thumbnail, product URL, seller/brand placeholder, category, rocket signal, ad signal, and AI scoring fields
+- Opportunity Center search form connected to the API route
+- Safe fallback to existing women's fashion mock data when Coupang blocks the request
+
+Important note:
+
+Coupang currently returns `403` to direct server-side HTML search requests in this environment. The product now has the integration structure, parser, scoring fields, and UI connection, but reliable production data ingestion should use an approved Coupang data source such as an official API credential flow or another permitted data provider.
+
 ## Project Structure
 
 VINIMINI AI is developed as a multi-page product, not a single large page.
