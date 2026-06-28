@@ -25,7 +25,7 @@ const autoDiscoveryKeywords = [
 type CoupangDataStatus = "missing-keys" | "auth-failed" | "blocked" | "fallback" | "live";
 type OpenAiCheckResult = {
   source: "cache" | "disabled" | "openai" | "openai-error";
-  dataLabel: "COUPANG API NOT CONNECTED";
+  dataLabel: "OPENAI MARKET ANALYSIS" | "OPENAI API NOT CONNECTED" | "COUPANG API NOT CONNECTED";
   canOpenAiFetchLiveCoupangData: false;
   conclusion: string;
   allowedRole: string[];

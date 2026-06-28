@@ -368,17 +368,17 @@ OpenAI validation rule:
 - OpenAI cannot be the source of truth for live Coupang product data by itself.
 - When live Coupang data is unavailable, the UI must clearly show `COUPANG API NOT CONNECTED` or `SOURCE LIMITED`.
 - OpenAI API keys must be read only from `.env.local`; `.env*` is ignored by Git and must not be pushed.
-- Development default is no OpenAI call. Set `ENABLE_OPENAI_TEST=true` only when intentionally testing.
-- The server checks cache before OpenAI calls. Same keyword plus same Korean date reuses cached results for 24 hours by default.
+- OpenAI calls run only when `OPENAI_API_KEY` is configured.
+- The server checks cache before OpenAI calls. Same keyword plus same Korean date reuses cached results for `OPENAI_CACHE_TTL_HOURS` hours by default.
 - `forceRefresh=true` is the only way to bypass cache.
 - OpenAI call count and last call time are logged by the server route.
 
 Environment variables for OpenAI testing:
 
 - `OPENAI_API_KEY`
-- `ENABLE_OPENAI_TEST=true`
 - `OPENAI_MODEL` optional, defaults to `gpt-4.1-mini`
-- `OPENAI_CACHE_TTL_MS` optional, defaults to 24 hours
+- `OPENAI_DAILY_LIMIT` optional, defaults to 10 calls per server session
+- `OPENAI_CACHE_TTL_HOURS` optional, defaults to 24 hours
 
 ## Project Structure
 
