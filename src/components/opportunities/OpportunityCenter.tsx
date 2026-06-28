@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { OpportunityCard } from "./OpportunityCard";
 import { NaverTrendPanel } from "./NaverTrendPanel";
+import { AutoDiscoveryPanel } from "./AutoDiscoveryPanel";
 import { dataEngineSources, scoreEngineSignals } from "@/lib/dailyBriefing";
 import type { DataEngineSource } from "@/lib/viniminiDataEngine";
 import type { CoupangOpportunity } from "@/lib/types";
@@ -200,6 +201,8 @@ export function OpportunityCenter({
             </aside>
           </div>
         </header>
+
+        <AutoDiscoveryPanel />
 
         <section className="grid gap-3 md:grid-cols-3">
           <article className="border border-[#D9D0C4] bg-white p-5">

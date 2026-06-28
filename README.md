@@ -75,6 +75,29 @@ Keep OpenAI analysis caches separate from raw data source caches.
 
 Every night, Market Director explores, Marketing Director evaluates, Pricing Director estimates, Creative Director reviews, Customer Insight AI reviews, Learning AI compares, CEO Secretary AI summarizes, and the Morning Briefing is created.
 
+### AI Auto Discovery v1
+
+AI Auto Discovery v1 turns the Opportunity Center from a search-first screen into a Headquarters briefing.
+
+Nightly meeting flow:
+
+1. 00:00 Market Director AI creates the women's fashion candidate universe.
+2. 00:10 Trend AI checks search growth through Naver DataLab.
+3. 00:20 OpenAI Market Analysis evaluates candidates in one batch to reduce cost.
+4. 00:30 Marketing Director AI estimates ad and competition potential.
+5. 00:40 Creative Director AI evaluates thumbnail and detail-page improvement potential.
+6. 00:50 Pricing Director AI estimates margin potential and entry difficulty.
+7. 01:00 CEO Secretary AI writes the Executive Summary, Today's Biggest Opportunity, Today's Biggest Risk, Today's First Action, and TOP10.
+
+Implementation:
+
+- `/api/vinimini/auto-discovery` generates a daily `discoveryRunId`.
+- Candidate generation uses a date-based seed so the keyword pool changes every day.
+- Recent recommendation history reduces repetition across the last 7 days.
+- Naver DataLab is used as source data, not cached AI reasoning.
+- OpenAI analysis cache keys include date, task type, keyword set hash, source data hash, model name, and prompt version.
+- The UI displays cache state, Today's OpenAI Calls, Cache Hit Rate, Estimated Cost Saved, and the Midnight Strategy Room meeting timeline.
+
 ### UX Principles
 
 Never build dashboards. Build Headquarters. Never build widgets. Build Departments. Never build reports. Build Executive Briefings. Never build software. Build an AI Company.
