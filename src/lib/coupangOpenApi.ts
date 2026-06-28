@@ -69,11 +69,25 @@ export async function fetchCoupangOpenApiProducts(keyword: string): Promise<Coup
 }
 
 function createCoupangAuthorization(method: string, path: string, query: string, accessKey: string, secretKey: string) {
-  const signedDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const signedDate = createCoupangSignedDate(new Date());
   const message = `${signedDate}${method}${path}${query}`;
   const signature = createHmac("sha256", secretKey).update(message).digest("hex");
 
   return `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${signedDate}, signature=${signature}`;
+}
+
+function createCoupangSignedDate(date: Date) {
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return [
+    date.getUTCFullYear().toString().slice(-2),
+    pad(date.getUTCMonth() + 1),
+    pad(date.getUTCDate()),
+    "T",
+    pad(date.getUTCHours()),
+    pad(date.getUTCMinutes()),
+    pad(date.getUTCSeconds()),
+    "Z",
+  ].join("");
 }
 
 function buildQuery(params: Record<string, string>) {
