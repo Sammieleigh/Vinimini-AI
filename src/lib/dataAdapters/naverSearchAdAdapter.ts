@@ -22,9 +22,9 @@ export async function fetchNaverSearchAdKeywords(keyword: string): Promise<Adapt
   if (!apiKey || !secretKey || !customerId) {
     return {
       source: "Naver SearchAd Keyword Tool",
-      status: "DEMO DATA",
+      status: "API NOT CONNECTED",
       keyword: normalizedKeyword,
-      message: "네이버 검색광고 키가 없어 월간 검색량, 경쟁도, 연관 키워드는 DEMO fallback입니다.",
+      message: "네이버 검색광고 키가 없어 API NOT CONNECTED 상태로 표시합니다.",
       data: null,
       fetchedAt: null,
     };
@@ -76,7 +76,7 @@ export async function fetchNaverSearchAdKeywords(keyword: string): Promise<Adapt
       source: "Naver SearchAd Keyword Tool",
       status: "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: `네이버 검색광고 호출에 실패해 DEMO fallback을 유지합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      message: `네이버 검색광고 호출에 실패해 SOURCE LIMITED 상태로 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: null,
       fetchedAt: new Date().toISOString(),
     };

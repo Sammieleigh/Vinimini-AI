@@ -9,11 +9,11 @@ export type AdapterEnvironmentStatus = {
 
 export function getAdapterEnvironmentStatus(): AdapterEnvironmentStatus {
   return {
-    coupangPartners: hasEnv("COUPANG_PARTNERS_ACCESS_KEY", "COUPANG_PARTNERS_SECRET_KEY") ? "LIVE DATA" : "DEMO DATA",
-    naverDataLab: hasEnv("NAVER_DATALAB_CLIENT_ID", "NAVER_DATALAB_CLIENT_SECRET") ? "LIVE DATA" : "DEMO DATA",
+    coupangPartners: hasEnv("COUPANG_PARTNERS_ACCESS_KEY", "COUPANG_PARTNERS_SECRET_KEY") ? "LIVE DATA" : "API NOT CONNECTED",
+    naverDataLab: hasEnv("NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET") ? "LIVE DATA" : "API NOT CONNECTED",
     naverSearchAd: hasEnv("NAVER_SEARCHAD_API_KEY", "NAVER_SEARCHAD_SECRET_KEY", "NAVER_SEARCHAD_CUSTOMER_ID")
       ? "LIVE DATA"
-      : "DEMO DATA",
+      : "API NOT CONNECTED",
     googleTrends: "DISABLED",
   };
 }
@@ -46,7 +46,7 @@ export function createDataEngineSources(status: AdapterEnvironmentStatus): DataE
     },
     {
       name: "VINIMINI AI Score Engine",
-      status: hasLiveSource(status) ? "PARTIAL DATA" : "DEMO DATA",
+      status: hasLiveSource(status) ? "PARTIAL DATA" : "SOURCE LIMITED",
       role: "CEO 의사결정 점수 계산",
       provides: ["Opportunity Score", "진입 난이도", "예상 마진", "Strong Buy", "신규 셀러 성공 확률"],
     },

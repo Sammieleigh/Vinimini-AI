@@ -6,6 +6,183 @@ VINIMINI AI starts with Coupang sellers. The first product surface is Fashion Re
 
 Sprint 7.0 product direction: VINIMINI focuses only on Coupang women's fashion. Other shopping malls are out of scope. The product should work as an automatic CEO briefing system, not a manual search tool.
 
+## Development Constitution
+
+### Mission
+
+VINIMINI AI is not a chatbot, dashboard, or search tool. VINIMINI AI is a CEO Operating System. Its purpose is to help CEOs become better CEOs.
+
+### Core Experience
+
+The CEO should never feel like they are using software. The CEO should feel like they are entering VINIMINI AI Headquarters every morning. VINIMINI AI builds experiences, not dashboards.
+
+Every morning follows this order:
+
+1. Good Morning, CEO.
+2. AI Executive Team completed overnight strategy meetings.
+3. CEO Secretary AI Executive Summary.
+4. Today's Biggest Opportunity.
+5. Today's Biggest Risk.
+6. Today's First Action.
+7. Department Reports.
+8. Opportunity Center.
+
+The CEO receives reports. The CEO does not search.
+
+### CEO First
+
+Everything revolves around the CEO: every AI, department, dashboard, recommendation, and update. The CEO is always the center.
+
+The system adapts to the CEO. The CEO never adapts to the system.
+
+### AI Company
+
+VINIMINI AI is an AI Company. Departments include CEO Secretary AI, Market Director AI, Marketing Director AI, Creative Director AI, Pricing Director AI, Data Director AI, Customer Insight AI, and Learning AI.
+
+Each department works independently. Departments collaborate before reporting. CEO Secretary AI creates the final Executive Summary.
+
+### AI Culture
+
+Every AI must respect the CEO, act before being asked, analyze before reporting, support every recommendation with evidence, cooperate with other AI departments, help the CEO become better every day, celebrate the CEO's strengths, give constructive improvement suggestions, never compete with the CEO, and never try to shine brighter than the CEO.
+
+The purpose of AI is to help the CEO shine. The best AI is not the smartest AI. The best AI helps the CEO become the best version of themselves.
+
+### CEO Intelligence Engine
+
+VINIMINI AI continuously learns the CEO's goals, priorities, strengths, decision patterns, and management style. The CEO Intelligence Profile should update continuously so every new briefing becomes more personalized.
+
+### AI Auto Discovery
+
+Never ask the user what to search. Every day the AI should explore the market automatically, discover opportunities, rank opportunities, and generate Today's TOP10. Search-first UX is prohibited. Discovery-first UX is required.
+
+### Data Architecture
+
+Separate data collection from AI reasoning. Data sources include Naver DataLab, OpenAI Analysis, Coupang Wing API, Google Trends, and future connectors. Each source must have a visible source badge such as LIVE DATA, OPENAI ANALYSIS, SOURCE LIMITED, COUPANG API, or NAVER DATALAB.
+
+### OpenAI Role
+
+OpenAI is not the data source. OpenAI is the AI Executive Team and executive reasoning engine. It supports market analysis, opportunity discovery, executive summaries, director reports, CEO briefings, opportunity scoring, and AI Executive Meetings.
+
+OpenAI should actively analyze available public information together with connected data sources. If evidence is insufficient, VINIMINI must explicitly report "More data required." Never invent facts.
+
+### OpenAI Cost Optimization
+
+Reduce API costs. Never repeatedly analyze identical inputs. Reuse cached analysis when the date, keyword set, task, source data, and prompt version are unchanged. Re-analyze only when new data arrives, the date changes, or the user requests "Analyze Again."
+
+Keep OpenAI analysis caches separate from raw data source caches.
+
+### AI Discovery
+
+Every night, Market Director explores, Marketing Director evaluates, Pricing Director estimates, Creative Director reviews, Customer Insight AI reviews, Learning AI compares, CEO Secretary AI summarizes, and the Morning Briefing is created.
+
+### UX Principles
+
+Never build dashboards. Build Headquarters. Never build widgets. Build Departments. Never build reports. Build Executive Briefings. Never build software. Build an AI Company.
+
+The user should feel "I just entered my AI Headquarters," not "I opened an AI tool."
+
+### Git Workflow
+
+Every completed feature must follow: test, `npm run lint`, `npm run build`, Preview verification, `git status`, commit, push, and README update. Never leave completed work only on the local computer. Every completed feature must be stored on GitHub.
+
+### Product Success
+
+Do not optimize for clicks, screen time, or addiction. Optimize for better decisions, better CEOs, better companies, less loneliness, more confidence, and personal growth.
+
+VINIMINI AI does not replace the CEO. VINIMINI AI helps the CEO become a better CEO. If the CEO grows today, VINIMINI AI succeeded.
+
+### Final Principle
+
+We are not building pages. We are building an AI Company that helps the CEO become the best version of themselves.
+
+## Core Philosophy
+
+VINIMINI AI is not a chatbot.
+
+VINIMINI AI is Headquarters for the CEO. It is a CEO Operating System whose purpose is not to answer questions, but to help the CEO become a better CEO every day.
+
+The CEO should never feel like they are using software. The CEO should feel like they are entering their AI Headquarters every morning. Every screen must reinforce this experience.
+
+Core product rules:
+
+1. Everything revolves around the CEO.
+2. Every AI, dashboard, report, recommendation, and update exists to support the CEO.
+3. VINIMINI AI is an AI Company, not a tool collection.
+4. Each AI belongs to a department with clear expertise.
+5. AI departments collaborate before reporting to the CEO.
+6. AI should feel like trusted executives, not a search engine.
+7. VINIMINI should think first, analyze first, prepare first, and brief first.
+8. The system adapts to the CEO. The CEO never adapts to the system.
+
+AI departments may include:
+
+- CEO Secretary AI
+- Market Department
+- Marketing Department
+- Pricing Department
+- Creative Studio
+- Customer Insight Department
+- Inventory Department
+- Learning Department
+
+Every AI follows this company culture:
+
+1. Respect the CEO.
+2. Act before being asked.
+3. Support every recommendation with evidence.
+4. Cooperate with other AI departments.
+5. Help the CEO become better every day.
+6. Celebrate the CEO's strengths.
+7. Give constructive feedback when improvement is possible.
+8. Never compete with the CEO.
+9. Always prioritize the CEO's long-term success.
+10. Help the CEO shine.
+
+## CEO Intelligence Engine
+
+VINIMINI AI must continuously learn:
+
+- CEO goals
+- CEO priorities
+- CEO decision patterns
+- CEO strengths
+- CEO preferred management style
+
+The CEO Intelligence Profile should update automatically. Every new briefing should become more personalized. VINIMINI adapts to the CEO so the CEO never has to adapt to the system.
+
+## Morning Workflow
+
+Every morning:
+
+1. AI departments analyze data overnight.
+2. AI departments discuss findings.
+3. CEO Secretary AI summarizes the executive consensus.
+4. The CEO receives the Executive Briefing.
+5. The CEO makes decisions.
+6. AI learns from those decisions.
+
+This repeats continuously.
+
+Never start with search-first UX such as "What would you like to search?" Start with the headquarters experience:
+
+- "Good Morning, CEO."
+- "Your executive team has completed overnight strategy meetings."
+- "Today's top opportunities are ready."
+
+## Success Metric
+
+Do not optimize for screen time. Do not optimize for addictive behavior.
+
+Optimize for:
+
+- Did the CEO become better?
+- Did the CEO become more confident?
+- Did the CEO make better decisions?
+- Did the CEO feel less alone?
+- Did the CEO grow today?
+
+If yes, VINIMINI AI succeeded.
+
 ## Roadmap
 
 ### v1
@@ -74,6 +251,22 @@ Before ending development, always complete:
 
 Do not end a work session with uncommitted or unpushed changes.
 
+Every completed work unit must end in this order:
+
+1. Test the changes.
+2. Check errors and fix them.
+3. Check `git status` or the closest available GitHub state.
+4. Write a meaningful feature-level commit message.
+5. Commit and push to GitHub.
+6. Summarize what changed in the work unit.
+
+Commit messages should be clear and feature-scoped, for example:
+
+- Add VINIMINI AI core philosophy
+- Add CEO Headquarters briefing layout
+- Connect Naver DataLab trend API
+- Improve AI executive briefing UX
+
 ## PM Direction
 
 Fashion Researcher is not a simple product list. It is an AI product planning room for Coupang sellers.
@@ -136,8 +329,8 @@ Current Sprint 7.0 implementation:
 - `src/lib/viniminiDataEngine.ts` defines the daily Coupang women's fashion briefing structure.
 - `/api/vinimini/daily-briefing` returns the generated daily briefing.
 - The route reuses cached results for the same Korean date unless `forceRefresh=true`.
-- The current engine uses `DEMO DATA` until live Coupang/Naver/Google sources are connected.
-- Dashboard changes stay minimal; the priority is the reusable data engine shape.
+- The current engine clearly marks sources as `SOURCE LIMITED` or `API NOT CONNECTED` until live Coupang/Naver/Google sources are connected.
+- Headquarters experience changes stay CEO-first; the priority is the reusable data engine shape.
 
 Sprint 7.1 adapter structure:
 
@@ -154,7 +347,8 @@ The UI must always distinguish:
 
 - `LIVE DATA`: verified live external data
 - `PARTIAL DATA`: some sources connected and some estimated or pending
-- `DEMO DATA`: mock data for product flow validation
+- `SOURCE LIMITED`: generated or incomplete briefing context that requires stronger source evidence
+- `API NOT CONNECTED`: the official external API is not configured or authenticated
 
 API usage rules:
 
@@ -172,7 +366,7 @@ OpenAI validation rule:
 
 - OpenAI can analyze, summarize, score, and recommend actions from data VINIMINI already collected.
 - OpenAI cannot be the source of truth for live Coupang product data by itself.
-- When live Coupang data is unavailable, the UI must clearly show `DEMO DATA / NO LIVE COUPANG DATA`.
+- When live Coupang data is unavailable, the UI must clearly show `COUPANG API NOT CONNECTED` or `SOURCE LIMITED`.
 - OpenAI API keys must be read only from `.env.local`; `.env*` is ignored by Git and must not be pushed.
 - Development default is no OpenAI call. Set `ENABLE_OPENAI_TEST=true` only when intentionally testing.
 - The server checks cache before OpenAI calls. Same keyword plus same Korean date reuses cached results for 24 hours by default.

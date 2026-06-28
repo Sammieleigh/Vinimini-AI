@@ -55,16 +55,16 @@ function getCoupangFailureMessage(error: unknown, hasOpenApiKeys: boolean) {
   const message = error instanceof Error ? error.message : "";
 
   if (!hasOpenApiKeys && message.includes("403")) {
-    return "쿠팡 검색 HTML 요청이 403으로 차단되어 DEMO DATA를 사용합니다.";
+    return "쿠팡 검색 HTML 요청이 403으로 차단되어 COUPANG API NOT CONNECTED 상태로 표시합니다.";
   }
 
   if (!hasOpenApiKeys) {
-    return "공식 WING OpenAPI 키가 없어 DEMO DATA를 사용합니다.";
+    return "공식 WING OpenAPI 키가 없어 COUPANG API NOT CONNECTED 상태로 표시합니다.";
   }
 
   if (/401|403|credentials|signature|unauthorized/i.test(message)) {
-    return "공식 WING OpenAPI 인증에 실패해 DEMO DATA를 사용합니다.";
+    return "공식 WING OpenAPI 인증에 실패해 COUPANG API NOT CONNECTED 상태로 표시합니다.";
   }
 
-  return "쿠팡 LIVE DATA 연결에 실패해 DEMO DATA를 사용합니다.";
+  return "쿠팡 LIVE DATA 연결에 실패해 SOURCE LIMITED 상태로 표시합니다.";
 }

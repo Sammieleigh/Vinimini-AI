@@ -1,4 +1,4 @@
-export type AdapterStatus = "LIVE DATA" | "PARTIAL DATA" | "DEMO DATA" | "DISABLED";
+export type AdapterStatus = "LIVE DATA" | "PARTIAL DATA" | "SOURCE LIMITED" | "API NOT CONNECTED" | "DISABLED";
 
 export type AdapterResult<T> = {
   source: string;

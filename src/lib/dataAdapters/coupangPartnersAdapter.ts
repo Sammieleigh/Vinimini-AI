@@ -28,9 +28,9 @@ export async function fetchCoupangPartnersProducts(keyword: string): Promise<Ada
   if (!accessKey || !secretKey) {
     return {
       source: "Coupang Partners API",
-      status: "DEMO DATA",
+      status: "API NOT CONNECTED",
       keyword: normalizedKeyword,
-      message: "쿠팡 파트너스 키가 없어 DEMO fallback을 사용합니다.",
+      message: "쿠팡 파트너스 키가 없어 COUPANG API NOT CONNECTED 상태로 표시합니다.",
       data: [],
       fetchedAt: null,
     };
@@ -70,7 +70,7 @@ export async function fetchCoupangPartnersProducts(keyword: string): Promise<Ada
       source: "Coupang Partners API",
       status: "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: `쿠팡 파트너스 호출에 실패해 DEMO fallback을 유지합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      message: `쿠팡 파트너스 호출에 실패해 SOURCE LIMITED 상태로 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: [],
       fetchedAt: new Date().toISOString(),
     };

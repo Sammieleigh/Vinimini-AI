@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { OpportunityCard } from "./OpportunityCard";
+import { NaverTrendPanel } from "./NaverTrendPanel";
 import { dataEngineSources, scoreEngineSignals } from "@/lib/dailyBriefing";
 import type { DataEngineSource } from "@/lib/viniminiDataEngine";
 import type { CoupangOpportunity } from "@/lib/types";
@@ -24,7 +25,7 @@ const autoDiscoveryKeywords = [
 type CoupangDataStatus = "missing-keys" | "auth-failed" | "blocked" | "fallback" | "live";
 type OpenAiCheckResult = {
   source: "cache" | "disabled" | "openai" | "openai-error";
-  dataLabel: "DEMO DATA / NO LIVE COUPANG DATA";
+  dataLabel: "COUPANG API NOT CONNECTED";
   canOpenAiFetchLiveCoupangData: false;
   conclusion: string;
   allowedRole: string[];
@@ -50,11 +51,11 @@ type PartnersCapabilityReport = {
 const statusCopy: Record<CoupangDataStatus, { label: string; message: string }> = {
   "missing-keys": {
     label: "공식 API 키 없음",
-    message: "COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY가 없어 DEMO DATA를 사용합니다.",
+    message: "COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY가 없어 COUPANG API NOT CONNECTED 상태로 표시합니다.",
   },
   "auth-failed": {
     label: "공식 API 인증 실패",
-    message: "WING OpenAPI 인증에 실패해 DEMO DATA를 사용합니다.",
+    message: "WING OpenAPI 인증에 실패해 COUPANG API NOT CONNECTED 상태로 표시합니다.",
   },
   blocked: {
     label: "쿠팡 검색 403 차단",
@@ -62,7 +63,7 @@ const statusCopy: Record<CoupangDataStatus, { label: string; message: string }> 
   },
   fallback: {
     label: "fallback 데이터 사용 중",
-    message: "실제 쿠팡 데이터가 아니며 제품 흐름 검증용 DEMO DATA입니다.",
+    message: "실제 쿠팡 데이터가 아니므로 SOURCE LIMITED 상태로 표시합니다.",
   },
   live: {
     label: "LIVE COUPANG DATA",
@@ -107,6 +108,8 @@ export function OpportunityCenter({
     });
   }, [activeTab, category, items, localFilter, sortBy]);
   const topTen = filtered.slice(0, 10);
+  const biggestOpportunity = topTen[0];
+  const biggestRisk = topTen.find((item) => item.risk.level !== "Low") ?? topTen[0];
 
   const searchCoupang = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -145,7 +148,7 @@ export function OpportunityCenter({
       setItems(products);
       setDataStatus("fallback");
       setDataMessage(
-        `DEMO DATA: 실제 쿠팡 데이터 연결에 실패해 fallback 데이터를 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+        `SOURCE LIMITED: 실제 쿠팡 데이터 연결에 실패했습니다. ${error instanceof Error ? error.message : ""}`.trim(),
       );
     } finally {
       setIsLoading(false);
@@ -177,64 +180,142 @@ export function OpportunityCenter({
   };
 
   return (
-    <main className="min-h-screen bg-[#F6F2EC] text-[#111111]">
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-7 px-5 py-8 sm:px-8 lg:px-10">
-        <header className="border-b border-[#E5DED5] pb-8">
-          <p className="text-xs font-medium uppercase tracking-[0.28em] text-[#6F6A63]">Opportunity Center</p>
-          <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-5xl">오늘의 여성패션 기회상품 TOP10</h1>
-          <p className="mt-4 max-w-2xl text-base leading-8 text-[#6F6A63]">
-            VINIMINI는 사용자가 검색하기 전에 쿠팡 여성패션 시장을 먼저 탐색하고, 오늘 진입하기 좋은 상품을 CEO에게 추천합니다.
-          </p>
+    <main className="min-h-screen bg-[#F4EFE7] text-[#111111]">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">
+        <header className="border-b border-[#D9D0C4] pb-6">
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#7D756B]">VINIMINI AI Headquarters</p>
+              <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-6xl">Good Morning, CEO.</h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-[#625B53]">
+                각 부서의 Director AI가 밤사이 여성패션 시장 회의를 마쳤습니다. CEO Secretary AI가 경영진 보고를 정리했습니다.
+              </p>
+            </div>
+            <aside className="border border-[#111111] bg-[#111111] p-5 text-[#F4EFE7]">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">CEO Secretary AI</p>
+              <p className="mt-4 text-2xl font-semibold tracking-normal">Executive Summary가 준비되었습니다.</p>
+              <p className="mt-4 text-sm leading-7 text-[#E2D8CB]">
+                대표님이 더 좋은 결정을 내릴 수 있도록, 경영진 보고를 하나의 첫 행동으로 압축했습니다. 오늘의 1순위는 {biggestOpportunity?.productName ?? "오늘의 1순위 상품"}입니다.
+              </p>
+            </aside>
+          </div>
         </header>
 
-        <section className="rounded-sm border border-[#111111] bg-[#111111] p-5 text-[#F6F2EC]">
-          <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#C9BDAF]">AI Auto Discovery</p>
-          <h2 className="mt-4 text-2xl font-semibold tracking-normal">AI가 매일 먼저 탐색하는 여성패션 키워드</h2>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {autoDiscoveryKeywords.map((keyword) => (
-              <span key={keyword} className="rounded-full border border-[#C9BDAF] px-3 py-1 text-xs text-[#E8DED1]">
-                {keyword}
-              </span>
+        <section className="grid gap-3 md:grid-cols-3">
+          <article className="border border-[#D9D0C4] bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8277]">Executive Summary</p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-normal">CEO Secretary가 경영진 회의를 요약했습니다.</h2>
+            <p className="mt-3 text-sm leading-6 text-[#625B53]">
+              AI는 대표보다 앞서기 위해 존재하지 않습니다. 대표가 더 명확하고 자신 있게 결정하도록 돕기 위해 존재합니다.
+            </p>
+          </article>
+          <article className="border border-[#D9D0C4] bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8277]">Today Biggest Opportunity</p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-normal">{biggestOpportunity?.productName ?? "분석 대기"}</h2>
+            <p className="mt-3 text-sm leading-6 text-[#625B53]">
+              추천도 {biggestOpportunity?.opportunityScore ?? "-"} · 예상 마진 {biggestOpportunity?.expectedMargin ?? "-"} · {biggestOpportunity?.whyNow ?? "시장 분석을 준비 중입니다."}
+            </p>
+          </article>
+          <article className="border border-[#D9D0C4] bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8277]">Today Biggest Risk</p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-normal">{biggestRisk?.risk.level ?? "Medium"} Risk</h2>
+            <p className="mt-3 text-sm leading-6 text-[#625B53]">
+              {biggestRisk?.risk.reasons[0] ?? "공식 쿠팡 상품 데이터가 연결되기 전까지 출처와 신뢰도 표시는 보수적으로 유지합니다."}
+            </p>
+          </article>
+        </section>
+
+        <section className="grid gap-4 border border-[#111111] bg-[#111111] p-5 text-[#F4EFE7] lg:grid-cols-[0.9fr_1.1fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">Today First Action</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-normal">1순위 상품의 썸네일과 첫 화면 메시지를 먼저 결정하세요.</h2>
+            <p className="mt-4 text-sm leading-7 text-[#E2D8CB]">
+              오늘의 목표는 더 많은 화면을 보는 것이 아니라, CEO가 한 가지 좋은 결정을 내리는 것입니다.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {["Market Director AI", "Marketing Director AI", "Creative Director AI", "Data Director AI"].map((department) => (
+              <article key={department} className="border border-[#3D3933] bg-[#181716] p-4">
+                <p className="text-sm font-semibold text-[#F4EFE7]">{department}</p>
+                <p className="mt-2 text-xs leading-5 text-[#CFC4B6]">부서 보고 제출 완료 · CEO Secretary 검토 완료</p>
+              </article>
             ))}
           </div>
         </section>
 
-        <section className="rounded-sm border border-[#E5DED5] bg-white p-5">
+        <section className="border border-[#D9D0C4] bg-white p-5">
           <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#9B948B]">VINIMINI Data Engine</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-normal">쿠팡 여성패션만 분석합니다.</h2>
-              <p className="mt-3 text-sm leading-6 text-[#6F6A63]">
-                상품 데이터 엔진과 OpenAI 분석 엔진을 분리합니다. OpenAI는 데이터를 가져오지 않고, 수집된 데이터만 분석합니다.
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8A8277]">Midnight Strategy Room</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-normal">Director AI들이 제출한 시장 후보</h2>
+              <p className="mt-3 text-sm leading-6 text-[#625B53]">
+                검색창을 기다리지 않고, 각 부서가 먼저 시장을 스캔하고 경영진 회의에 올릴 후보를 제출합니다.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {["LIVE DATA", "PARTIAL DATA", "DEMO DATA", "DISABLED"].map((label) => (
-                  <span key={label} className="rounded-full border border-[#E5DED5] bg-[#FBFAF7] px-3 py-1 text-xs font-semibold text-[#6F6A63]">
-                    {label}
-                  </span>
-                ))}
-              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              {autoDiscoveryKeywords.map((keyword) => (
+                <span key={keyword} className="border border-[#D9D0C4] bg-[#FBFAF7] px-3 py-2 text-xs font-medium text-[#625B53]">
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <NaverTrendPanel />
+
+        <section className="border border-[#D9D0C4] bg-white p-5">
+          <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8A8277]">Department Evidence Room</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-normal">부서 보고는 출처와 신뢰도를 함께 제출합니다.</h2>
+              <p className="mt-3 text-sm leading-6 text-[#625B53]">
+                이상적인 경영진은 근거 없이 주장하지 않습니다. 각 Director AI는 데이터 출처, 한계, 신뢰도를 함께 보고합니다.
+              </p>
             </div>
             <div className="grid gap-3">
               {dataSources.map((source) => (
-                <article key={source.name} className="grid gap-2 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+                <article key={source.name} className="grid gap-2 border border-[#D9D0C4] bg-[#FBFAF7] p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
                   <p className="text-sm font-semibold text-[#111111]">{source.name}</p>
-                  <p className="text-sm leading-6 text-[#6F6A63]">{source.role}</p>
-                  <span className="rounded-full border border-[#E5DED5] bg-white px-3 py-1 text-xs font-semibold text-[#6F6A63]">
+                  <p className="text-sm leading-6 text-[#625B53]">{source.role}</p>
+                  <span className="border border-[#D9D0C4] bg-white px-3 py-1 text-xs font-semibold text-[#625B53]">
                     {source.status}
                   </span>
                 </article>
               ))}
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-[#E5DED5] pt-4">
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-[#D9D0C4] pt-4">
             {scoreEngineSignals.map((signal) => (
-              <span key={signal} className="rounded-full border border-[#E5DED5] px-3 py-1 text-xs text-[#6F6A63]">
+              <span key={signal} className="border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">
                 {signal}
               </span>
             ))}
           </div>
         </section>
+
+        <div className="grid gap-3 border border-[#D9D0C4] bg-white p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+          <span
+            className={`border px-3 py-1 text-xs font-semibold ${
+              isLiveData
+                ? "border-[#111111] bg-[#111111] text-[#F4EFE7]"
+                : "border-[#D9D0C4] bg-[#FBFAF7] text-[#625B53]"
+            }`}
+          >
+            {isLiveData ? "LIVE COUPANG DATA" : "SOURCE LIMITED"}
+          </span>
+          <p className="text-sm leading-6 text-[#625B53]">
+            <span className="font-semibold text-[#111111]">{statusCopy[dataStatus].label}</span>
+            {" · "}
+            {dataMessage}
+          </p>
+          <input
+            value={localFilter}
+            onChange={(event) => setLocalFilter(event.target.value)}
+            placeholder="TOP10 안에서 조용히 필터"
+            className="min-h-11 border border-[#D9D0C4] bg-white px-4 text-sm outline-none transition placeholder:text-[#8A8277] focus:border-[#111111] md:w-72"
+          />
+        </div>
 
         <div className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
           <span
@@ -244,7 +325,7 @@ export function OpportunityCenter({
                 : "border-[#E5DED5] bg-[#FBFAF7] text-[#6F6A63]"
             }`}
           >
-            {isLiveData ? "LIVE COUPANG DATA" : "DEMO DATA"}
+            {isLiveData ? "LIVE COUPANG DATA" : "SOURCE LIMITED"}
           </span>
           <p className="text-sm leading-6 text-[#6F6A63]">
             <span className="font-semibold text-[#111111]">{statusCopy[dataStatus].label}</span>
@@ -259,23 +340,23 @@ export function OpportunityCenter({
           />
         </div>
 
-        <section className="grid gap-3 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-4">
+        <section className="grid gap-3 border border-[#D9D0C4] bg-[#FBFAF7] p-4 md:grid-cols-4">
           {(["missing-keys", "auth-failed", "blocked", "fallback"] as const).map((status) => (
-            <div key={status} className="rounded-sm border border-[#E5DED5] bg-white p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9B948B]">Coupang Status</p>
+            <div key={status} className="border border-[#D9D0C4] bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A8277]">Source Readiness</p>
               <p className="mt-2 text-sm font-semibold text-[#111111]">{statusCopy[status].label}</p>
-              <p className="mt-2 text-xs leading-5 text-[#6F6A63]">{dataStatus === status ? "현재 상태" : "필요 시 표시"}</p>
+              <p className="mt-2 text-xs leading-5 text-[#625B53]">{dataStatus === status ? "현재 보고 상태" : "필요 시 Director AI가 보고"}</p>
             </div>
           ))}
         </section>
 
-        <section className="grid gap-4 rounded-sm border border-[#E5DED5] bg-white p-5 lg:grid-cols-[1fr_auto] lg:items-start">
+        <section className="grid gap-4 border border-[#D9D0C4] bg-white p-5 lg:grid-cols-[1fr_auto] lg:items-start">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#9B948B]">OpenAI Data Guard</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-normal">OpenAI는 쿠팡 데이터 수집기가 아니라 분석 엔진입니다.</h2>
-            <p className="mt-3 text-sm leading-6 text-[#6F6A63]">
-              실제 쿠팡 데이터 소스가 없으면 상품명, 썸네일, 리뷰수, 평점은 생성하지 않습니다. 현재 상태는{" "}
-              <span className="font-semibold text-[#111111]">DEMO DATA / NO LIVE COUPANG DATA</span>입니다.
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8A8277]">Data Director AI</p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-normal">분석 엔진은 근거를 넘어서 주장하지 않습니다.</h2>
+            <p className="mt-3 text-sm leading-6 text-[#625B53]">
+              쿠팡 공식 데이터 소스가 없으면 상품명, 썸네일, 리뷰수, 평점은 확정 사실처럼 말하지 않습니다. 현재 상태는{" "}
+              <span className="font-semibold text-[#111111]">COUPANG API NOT CONNECTED</span>입니다.
             </p>
             {openAiCheck ? (
               <div className="mt-4 grid gap-3 rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4 md:grid-cols-3">
@@ -293,7 +374,7 @@ export function OpportunityCenter({
                     {openAiCheck.openAiCallCount}회 · {openAiCheck.lastOpenAiCallAt || "호출 없음"}
                   </p>
                 </div>
-                <p className="text-sm leading-6 text-[#6F6A63] md:col-span-3">{openAiCheck.conclusion}</p>
+                <p className="text-sm leading-6 text-[#625B53] md:col-span-3">{openAiCheck.conclusion}</p>
               </div>
             ) : null}
           </div>
@@ -301,28 +382,28 @@ export function OpportunityCenter({
             type="button"
             onClick={verifyOpenAiRole}
             disabled={isCheckingOpenAi}
-            className="min-h-11 rounded-sm border border-[#111111] bg-white px-5 text-sm font-semibold text-[#111111] disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 border border-[#111111] bg-white px-5 text-sm font-semibold text-[#111111] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isCheckingOpenAi ? "검증 중" : "OpenAI 역할 검증"}
+            {isCheckingOpenAi ? "검증 중" : "Director 보고 검증"}
           </button>
         </section>
 
-        <section className="rounded-sm border border-[#E5DED5] bg-white p-5">
+        <section className="border border-[#D9D0C4] bg-white p-5">
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#9B948B]">Coupang Partners API Check</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-normal">쿠팡 파트너스 API로 가져올 수 있는 데이터 검증</h2>
-              <p className="mt-3 text-sm leading-6 text-[#6F6A63]">
-                API 키가 없으면 실제 호출 없이 Mock Adapter로 구조만 확인합니다. 리뷰수와 평점은 공식 상품 데이터로 확정하기 어렵기 때문에 대체 소스가 필요합니다.
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8A8277]">Future Coupang API Room</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-normal">공식 API가 연결되면 부서 보고의 데이터 소스만 교체합니다.</h2>
+              <p className="mt-3 text-sm leading-6 text-[#625B53]">
+                지금은 구조를 검증하고, 나중에 쿠팡 공식 API가 들어오면 CEO 브리핑 스토리는 유지한 채 근거 데이터만 승격합니다.
               </p>
             </div>
             <button
               type="button"
               onClick={verifyPartnersCapability}
               disabled={isCheckingPartners}
-              className="min-h-11 rounded-sm border border-[#111111] bg-white px-5 text-sm font-semibold text-[#111111] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 border border-[#111111] bg-white px-5 text-sm font-semibold text-[#111111] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isCheckingPartners ? "검증 중" : "파트너스 API 검증"}
+              {isCheckingPartners ? "검증 중" : "API 전환 준비도 확인"}
             </button>
           </div>
 
@@ -364,7 +445,7 @@ export function OpportunityCenter({
           ) : null}
         </section>
 
-        <form onSubmit={searchCoupang} className="grid gap-3 rounded-sm border border-[#E5DED5] bg-white p-4 xl:grid-cols-[1fr_auto_auto_auto_auto] xl:items-center">
+        <form onSubmit={searchCoupang} className="grid gap-3 border border-[#D9D0C4] bg-white p-4 xl:grid-cols-[1fr_auto_auto_auto_auto] xl:items-center">
           <nav className="flex gap-2 overflow-x-auto pb-1">
             {tabs.map((tab) => (
               <button
@@ -373,8 +454,8 @@ export function OpportunityCenter({
                 onClick={() => setActiveTab(tab)}
                 className={`shrink-0 rounded-sm border px-4 py-3 text-sm font-medium transition ${
                   activeTab === tab
-                    ? "border-[#111111] bg-[#111111] text-[#F6F2EC]"
-                    : "border-[#E5DED5] bg-white text-[#6F6A63] hover:border-[#111111]"
+                    ? "border-[#111111] bg-[#111111] text-[#F4EFE7]"
+                    : "border-[#D9D0C4] bg-white text-[#625B53] hover:border-[#111111]"
                 }`}
               >
                 {tab}
@@ -384,20 +465,20 @@ export function OpportunityCenter({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="보조 검색 키워드"
-            className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition placeholder:text-[#9B948B] focus:border-[#111111] lg:w-80"
+            placeholder="Director AI에게 보조 검토 요청"
+            className="min-h-11 border border-[#D9D0C4] bg-white px-4 text-sm outline-none transition placeholder:text-[#8A8277] focus:border-[#111111] lg:w-80"
           />
           <button
             type="submit"
-            className="min-h-11 rounded-sm border border-[#111111] bg-[#111111] px-5 text-sm font-semibold text-[#F6F2EC] disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 border border-[#111111] bg-[#111111] px-5 text-sm font-semibold text-[#F4EFE7] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoading}
           >
-            {isLoading ? "검색 중" : "쿠팡 검색"}
+            {isLoading ? "검토 중" : "부서 재검토"}
           </button>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition focus:border-[#111111]"
+            className="min-h-11 border border-[#D9D0C4] bg-white px-4 text-sm outline-none transition focus:border-[#111111]"
           >
             {categories.map((item) => (
               <option key={item} value={item}>
@@ -408,7 +489,7 @@ export function OpportunityCenter({
           <select
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value)}
-            className="min-h-11 rounded-sm border border-[#E5DED5] bg-white px-4 text-sm outline-none transition focus:border-[#111111]"
+            className="min-h-11 border border-[#D9D0C4] bg-white px-4 text-sm outline-none transition focus:border-[#111111]"
           >
             {sortOptions.map((item) => (
               <option key={item} value={item}>
@@ -418,11 +499,20 @@ export function OpportunityCenter({
           </select>
         </form>
 
-        <div className="grid gap-3">
+        <section className="border-t border-[#D9D0C4] pt-6">
+          <div className="mb-5 grid gap-2 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8A8277]">CEO Briefing Report</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-normal">오늘의 기회상품 TOP10</h2>
+            </div>
+            <p className="text-sm leading-6 text-[#625B53]">각 카드는 부서 보고서입니다. CEO가 다음 회의에서 바로 결정할 수 있도록 압축했습니다.</p>
+          </div>
+          <div className="grid gap-3">
           {topTen.map((item, index) => (
             <OpportunityCard key={item.id} item={item} index={index} />
           ))}
-        </div>
+          </div>
+        </section>
       </section>
     </main>
   );

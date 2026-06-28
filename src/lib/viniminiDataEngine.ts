@@ -1,7 +1,7 @@
 import { opportunities } from "./data";
 import type { CoupangOpportunity } from "./types";
 
-export type DataFreshness = "LIVE DATA" | "PARTIAL DATA" | "DEMO DATA" | "DISABLED";
+export type DataFreshness = "LIVE DATA" | "PARTIAL DATA" | "SOURCE LIMITED" | "API NOT CONNECTED" | "DISABLED";
 
 export type DataEngineSource = {
   name: string;
@@ -46,19 +46,19 @@ export const DATA_ENGINE_CACHE_TTL_HOURS = 24;
 export const dataEngineSources: DataEngineSource[] = [
   {
     name: "쿠팡 파트너스 API",
-    status: "DEMO DATA",
+    status: "API NOT CONNECTED",
     role: "상품 후보 생성",
     provides: ["상품명", "가격", "이미지", "상품 URL", "브랜드 후보", "카테고리 후보"],
   },
   {
     name: "네이버 데이터랩",
-    status: "DEMO DATA",
+    status: "SOURCE LIMITED",
     role: "시장 수요 계산",
     provides: ["검색량", "시즌성", "증가율"],
   },
   {
     name: "네이버 검색광고 키워드 도구",
-    status: "DEMO DATA",
+    status: "API NOT CONNECTED",
     role: "시장 규모 계산",
     provides: ["월간 검색량", "경쟁도", "연관 키워드"],
   },
@@ -70,7 +70,7 @@ export const dataEngineSources: DataEngineSource[] = [
   },
   {
     name: "VINIMINI AI Score Engine",
-    status: "DEMO DATA",
+    status: "SOURCE LIMITED",
     role: "CEO 의사결정 점수 계산",
     provides: ["Opportunity Score", "진입 난이도", "예상 마진", "Strong Buy", "신규 셀러 성공 확률"],
   },
@@ -114,7 +114,7 @@ export function createDailyCoupangBriefing(
     reviewImprovementTop10,
     risingKeywords: ["냉감 티셔츠", "린넨 셋업", "밴딩 팬츠", "체형커버 스커트", "여름 원피스"],
     crowdedProducts: ["냉감 이너 티셔츠", "쿨링 니트 반팔"],
-    executiveSummary: `${oneBigProduct.productName}은 오늘 가장 먼저 검토할 쿠팡 여성패션 상품입니다. 현재는 DEMO DATA 기반이며, 실제 데이터 연결 후 점수가 재계산됩니다.`,
+    executiveSummary: `${oneBigProduct.productName}은 오늘 가장 먼저 검토할 쿠팡 여성패션 상품입니다. 현재는 출처 제한 상태이며, 실제 데이터 연결 후 점수가 재계산됩니다.`,
     dataSources: sources,
     scoreSignals: scoreEngineSignals,
   };
@@ -124,7 +124,7 @@ function getOverallDataFreshness(sources: DataEngineSource[]): DataFreshness {
   const liveCount = sources.filter((source) => source.status === "LIVE DATA").length;
   if (liveCount >= 3) return "LIVE DATA";
   if (liveCount > 0) return "PARTIAL DATA";
-  return "DEMO DATA";
+  return "SOURCE LIMITED";
 }
 
 function toRankedItems(products: CoupangOpportunity[]): DailyOpportunityItem[] {

@@ -15,7 +15,7 @@ type OpenAiCoupangCheckResult = {
   keyword: string;
   date: string;
   source: "cache" | "disabled" | "openai" | "openai-error";
-  dataLabel: "DEMO DATA / NO LIVE COUPANG DATA";
+  dataLabel: "COUPANG API NOT CONNECTED";
   canOpenAiFetchLiveCoupangData: false;
   conclusion: string;
   allowedRole: string[];
@@ -128,7 +128,7 @@ function createBaseResult(
     keyword,
     date,
     source,
-    dataLabel: "DEMO DATA / NO LIVE COUPANG DATA",
+    dataLabel: "COUPANG API NOT CONNECTED",
     canOpenAiFetchLiveCoupangData: false,
     conclusion,
     allowedRole: ["수집된 쿠팡 데이터 분석", "Opportunity Score 계산 보조", "리뷰 불만 요약", "썸네일/상세페이지 개선안 제안", "CEO 실행 전략 작성"],

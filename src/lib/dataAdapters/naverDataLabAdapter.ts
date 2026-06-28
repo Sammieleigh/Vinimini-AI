@@ -5,21 +5,33 @@ const NAVER_DATALAB_URL = "https://openapi.naver.com/v1/datalab/search";
 type NaverDataLabResponse = {
   results?: Array<{
     title?: string;
+    keywords?: string[];
     data?: Array<{ period: string; ratio: number }>;
   }>;
 };
 
 export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterResult<DataLabTrend | null>> {
-  const clientId = process.env.NAVER_DATALAB_CLIENT_ID;
-  const clientSecret = process.env.NAVER_DATALAB_CLIENT_SECRET;
+  const clientId = process.env.NAVER_CLIENT_ID;
+  const clientSecret = process.env.NAVER_CLIENT_SECRET;
   const normalizedKeyword = keyword.trim();
+
+  if (!normalizedKeyword) {
+    return {
+      source: "Naver DataLab",
+      status: "PARTIAL DATA",
+      keyword: "",
+      message: "검색어가 비어 있어 네이버 데이터랩을 호출하지 않았습니다.",
+      data: null,
+      fetchedAt: null,
+    };
+  }
 
   if (!clientId || !clientSecret) {
     return {
       source: "Naver DataLab",
-      status: "DEMO DATA",
+      status: "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: "네이버 데이터랩 키가 없어 검색 추이, 시즌성, 성장률은 DEMO fallback입니다.",
+      message: "NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 없어 네이버 데이터랩을 호출하지 않았습니다.",
       data: null,
       fetchedAt: null,
     };
@@ -43,18 +55,18 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
     });
 
     if (!response.ok) {
-      throw new Error(`Naver DataLab failed: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Naver DataLab failed: ${response.status} ${errorText}`);
     }
 
     const payload = (await response.json()) as NaverDataLabResponse;
-    const firstResult = payload.results?.[0];
-    const points = firstResult?.data ?? [];
+    const points = payload.results?.[0]?.data ?? [];
 
     return {
       source: "Naver DataLab",
       status: points.length ? "LIVE DATA" : "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: points.length ? "네이버 데이터랩 검색 추이를 연결했습니다." : "네이버 데이터랩 응답은 성공했지만 추이 데이터가 비어 있습니다.",
+      message: points.length ? "네이버 데이터랩 검색어 트렌드 데이터를 연결했습니다." : "네이버 데이터랩 응답은 성공했지만 트렌드 데이터가 비어 있습니다.",
       data: {
         keyword: normalizedKeyword,
         trendPoints: points,
@@ -68,7 +80,7 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
       source: "Naver DataLab",
       status: "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: `네이버 데이터랩 호출에 실패해 DEMO fallback을 유지합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      message: `네이버 데이터랩 호출에 실패했습니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: null,
       fetchedAt: new Date().toISOString(),
     };
@@ -77,16 +89,20 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
 
 function calculateGrowthRate(points: Array<{ ratio: number }>) {
   if (points.length < 2) return 0;
-  const first = points[0].ratio || 1;
-  const last = points[points.length - 1].ratio;
+  const first = points[0]?.ratio || 1;
+  const last = points[points.length - 1]?.ratio ?? first;
   return Math.round(((last - first) / first) * 100);
 }
 
 function inferSeasonality(points: Array<{ ratio: number }>) {
   if (points.length < 4) return "데이터 부족";
-  const recent = points.slice(-4).reduce((sum, point) => sum + point.ratio, 0) / 4;
-  const previous = points.slice(0, Math.min(4, points.length)).reduce((sum, point) => sum + point.ratio, 0) / Math.min(4, points.length);
-  return recent >= previous ? "상승 시즌" : "하락 또는 안정";
+  const recent = average(points.slice(-4).map((point) => point.ratio));
+  const previous = average(points.slice(0, Math.min(4, points.length)).map((point) => point.ratio));
+  return recent >= previous ? "상승 추세" : "하락 또는 안정";
+}
+
+function average(values: number[]) {
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
 }
 
 function getDateBeforeDays(days: number) {
