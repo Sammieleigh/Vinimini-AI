@@ -28,8 +28,8 @@ export function BriefBox({ title, text }: { title: string; text: string }) {
 
 export function SourceLimitedNotice() {
   return (
-    <div className="border border-[#111111] bg-[#111111] p-4 text-sm leading-6 text-[#F4EFE7]">
-      SOURCE LIMITED: OpenAI는 공개 웹과 연결된 근거를 분석할 수 있지만, 확인되지 않은 쿠팡 상품명, 가격, 리뷰 수, 평점,
+    <div className="border border-[#D9D0C4] bg-[#FBFAF7] p-4 text-sm leading-6 text-[#625B53]">
+      근거 부족 안내: AI는 공개 웹과 연결된 근거를 분석할 수 있지만, 확인되지 않은 쿠팡 상품명, 가격, 리뷰 수, 평점,
       판매량, 순위를 사실처럼 만들지 않습니다. 검증되지 않은 항목은 추가 데이터 필요로 표시합니다.
     </div>
   );

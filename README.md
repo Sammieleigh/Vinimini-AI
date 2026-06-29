@@ -29,6 +29,8 @@ Every morning follows this order:
 
 The CEO receives reports. The CEO does not search.
 
+User-facing UI language is Korean only.
+
 ### CEO First
 
 Everything revolves around the CEO: every AI, department, dashboard, recommendation, and update. The CEO is always the center.
@@ -158,6 +160,21 @@ VINIMINI now prioritizes Coupang-first market intelligence for Opportunity Cente
 - The UI consistently separates `VERIFIED INFORMATION`, `AI ANALYSIS`, `SOURCE LIMITED`, and `MORE DATA REQUIRED`.
 - Finance Director AI tracks OpenAI calls, cache hit rate, duplicate requests prevented, and estimated cost saved.
 - Opportunity Center cards now indicate that OpenAI market research is available in Planning Room instead of triggering repeated calls from every card.
+
+### Sprint 10.1 Category-Locked Competitor Research
+
+Competitor research must protect CEO decision quality by removing cross-category noise.
+
+- Each opportunity researches competitors only from its own core keyword and same-category keyword expansions.
+- Example: "여름 와이드 슬랙스" can expand to "여성 와이드 슬랙스", "냉감 와이드 슬랙스", "밴딩 와이드 슬랙스", and "린넨 와이드 슬랙스", but not dresses, leggings, hoodies, or unrelated tops.
+- The server creates a category profile with allowed keyword expansions, required terms, and excluded terms before calling OpenAI.
+- OpenAI receives the category lock in the prompt, and the server filters the response again before returning competitors.
+- Planning Room competitor analysis always shows the verified Coupang competitor product list first: product name, thumbnail status, price, review count, rating, Rocket/shipping signal, seller, product link, and evidence status.
+- Competitor warnings such as insufficient source evidence stay as auxiliary information; the product list and CEO decision remain the primary screen focus.
+- Coupang official product search results are merged into the competitor table when available. Fields not provided by the official API, such as reviews or ratings, remain marked as additional data required instead of being invented.
+- OpenAI Coupang public-web products are no longer deleted by the category guard. The server assigns a relevance score, keeps high-relevance products in the competitor table, and moves low-relevance products to an excluded-candidate section for CEO review.
+- Evidence status is separated into verified information, partial data, and source-limited data. Only products with confirmed name, price, review count, rating, and URL can be treated as fully verified.
+- AI analysis is shown below the product list and explains why each competitor sells, thumbnail patterns, detail-page patterns, repeated review pros/cons, differentiation opportunities, and CEO action recommendations.
 
 ### Planning Room v1
 

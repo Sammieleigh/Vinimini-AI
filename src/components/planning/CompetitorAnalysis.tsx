@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { CoupangOpportunity } from "@/lib/types";
 import { SectionHeading, SourceLimitedNotice } from "./PlanningPrimitives";
@@ -9,21 +10,43 @@ type MarketResearchCompetitor = {
   price: string;
   reviewCount: string;
   rating: string;
+  seller: string;
+  shippingInfo: string;
+  rocketDelivery: string;
   productUrl: string;
   thumbnailUrl: string;
   sellingPoints: string[];
-  evidenceStatus: "VERIFIED INFORMATION" | "SOURCE LIMITED";
+  thumbnailFeatures: string[];
+  firstScreenFeatures: string[];
+  detailPageFeatures: string[];
+  repeatedReviewPros: string[];
+  repeatedReviewCons: string[];
+  differentiationHints: string[];
+  whyItSells: string;
+  relevanceScore: number;
+  relevanceReason: string;
+  evidenceStatus: "VERIFIED INFORMATION" | "PARTIAL DATA" | "SOURCE LIMITED";
 };
 
 type MarketResearchResult = {
   ok: boolean;
   cacheStatus: "Fresh Analysis" | "Cached Analysis" | "OPENAI API NOT CONNECTED" | "Analysis Limited";
+  categoryProfile: {
+    baseCategory: string;
+    allowedKeywordExpansion: string[];
+    excludedTerms: string[];
+  };
   sourceBadges: string[];
   competitors: MarketResearchCompetitor[];
+  excludedCompetitors: MarketResearchCompetitor[];
   aiAnalysis: {
     competitionStrength: string;
+    pricePosition: string;
     reviewBarrier: string;
-    detailPageHints: string[];
+    detailPageStrengths: string[];
+    thumbnailPattern: string;
+    customerComplaints: string[];
+    differentiationPoints: string[];
     summary: string;
     recommendedAction: string;
   };
@@ -89,9 +112,9 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
     <div className="grid gap-5">
       <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
         <SectionHeading
-          eyebrow="OpenAI Market Research Engine"
-          title="쿠팡 중심 경쟁사 분석"
-          text="OpenAI가 쿠팡 공개 상품 페이지, 쿠팡 Ads Trend Insights, 공개 쿠팡 관련 정보를 우선 조사합니다. 확인된 값은 VERIFIED INFORMATION, 해석은 AI ANALYSIS, 부족한 근거는 SOURCE LIMITED 또는 MORE DATA REQUIRED로 구분합니다."
+          eyebrow="경영진 시장 리서치 엔진"
+          title="동일 카테고리 경쟁상품 분석"
+          text="쿠팡 공개 상품 페이지와 쿠팡 광고 트렌드 인사이트를 우선 확인하되, 다른 카테고리 상품은 경쟁상품에서 제외합니다. 확인된 정보와 AI 전략 판단을 분리하고, 근거가 부족하면 한국어로 명확히 표시합니다."
         />
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <button type="button" onClick={() => loadResearch(true)} disabled={isLoading} className="border border-[#111111] bg-[#111111] px-4 py-3 text-sm font-semibold text-[#F4EFE7] disabled:opacity-60">
@@ -103,71 +126,178 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <Metric label="캐시 상태" value={isLoading ? "리서치 중" : research?.cacheStatus || "SOURCE LIMITED"} />
-        <Metric label="오늘 OpenAI 호출" value={`${research?.finance.todayOpenAiCalls ?? 0}회`} />
-        <Metric label="캐시 적중률" value={`${research?.finance.cacheHitRate ?? 0}%`} />
-        <Metric label="중복 요청 방지" value={`${research?.finance.duplicateRequestsPrevented ?? 0}회`} />
-      </section>
-
-      <div className="flex flex-wrap gap-2">
-        {(research?.sourceBadges ?? ["SOURCE LIMITED"]).map((badge) => (
-          <span key={badge} className="border border-[#D9D0C4] bg-[#FBFAF7] px-3 py-1 text-xs font-semibold text-[#625B53]">
-            {badge}
-          </span>
-        ))}
-      </div>
-
-      {error || research?.message ? <p className="border border-[#D9D0C4] bg-[#FBFAF7] p-3 text-sm leading-6 text-[#625B53]">{error || research?.message}</p> : null}
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+      <section className="overflow-x-auto border border-[#D9D0C4] bg-white">
+        <div className="border-b border-[#D9D0C4] bg-[#FBFAF7] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8277]">확인된 정보</p>
+          <h3 className="mt-2 text-lg font-semibold">실제 쿠팡 경쟁상품 리스트</h3>
+          <p className="mt-1 text-sm text-[#625B53]">대표님이 바로 열어볼 수 있도록 상품 리스트를 가장 위에 고정합니다.</p>
+        </div>
+        <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-[#D9D0C4] text-xs uppercase tracking-[0.16em] text-[#8A8277]">
-              <th className="py-3 pr-4">상품명</th>
-              <th className="py-3 pr-4">가격</th>
-              <th className="py-3 pr-4">리뷰 수</th>
-              <th className="py-3 pr-4">평점</th>
-              <th className="py-3 pr-4">근거 상태</th>
-              <th className="py-3">판매 포인트</th>
+            <tr className="border-b border-[#D9D0C4] text-xs uppercase tracking-[0.14em] text-[#8A8277]">
+              <th className="px-4 py-3">썸네일</th>
+              <th className="px-4 py-3">상품명</th>
+              <th className="px-4 py-3">판매가격</th>
+              <th className="px-4 py-3">리뷰수</th>
+              <th className="px-4 py-3">평점</th>
+              <th className="px-4 py-3">로켓배송</th>
+              <th className="px-4 py-3">판매자명</th>
+              <th className="px-4 py-3">판매 링크</th>
+              <th className="px-4 py-3">관련도</th>
+              <th className="px-4 py-3">근거</th>
             </tr>
           </thead>
           <tbody>
             {competitors.map((competitor, index) => (
-              <tr key={`${competitor.productName}-${index}`} className="border-b border-[#E5DED5] last:border-b-0">
-                <td className="py-4 pr-4 font-semibold">
+              <tr key={`${competitor.productName}-table-${index}`} className="border-b border-[#E5DED5] last:border-b-0">
+                <td className="px-4 py-4">
+                  <div className="flex h-16 w-16 items-center justify-center border border-[#E5DED5] bg-[#FBFAF7] text-center text-[11px] text-[#8A8277]">
+                    {competitor.thumbnailUrl ? <Image src={competitor.thumbnailUrl} alt="" width={64} height={64} unoptimized className="h-full w-full object-cover" /> : "근거 부족"}
+                  </div>
+                </td>
+                <td className="max-w-[280px] px-4 py-4 font-semibold">{competitor.productName}</td>
+                <td className="px-4 py-4">{formatDisplayText(competitor.price, "근거 부족")}</td>
+                <td className="px-4 py-4">{formatDisplayText(competitor.reviewCount, "근거 부족")}</td>
+                <td className="px-4 py-4">{formatDisplayText(competitor.rating, "근거 부족")}</td>
+                <td className="px-4 py-4">{formatDisplayText(competitor.rocketDelivery, "근거 부족")}</td>
+                <td className="px-4 py-4">{formatDisplayText(competitor.seller, "근거 부족")}</td>
+                <td className="px-4 py-4">
                   {competitor.productUrl ? (
-                    <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">
-                      {competitor.productName}
+                    <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-4">
+                      쿠팡 상품 열기
                     </a>
                   ) : (
-                    competitor.productName
+                    "근거 부족"
                   )}
                 </td>
-                <td className="py-4 pr-4">{competitor.price}</td>
-                <td className="py-4 pr-4">{competitor.reviewCount}</td>
-                <td className="py-4 pr-4">{competitor.rating}</td>
-                <td className="py-4 pr-4">{competitor.evidenceStatus}</td>
-                <td className="py-4 leading-6 text-[#625B53]">{competitor.sellingPoints.join(" / ")}</td>
+                <td className="px-4 py-4">{competitor.relevanceScore}점</td>
+                <td className="px-4 py-4">{formatBadge(competitor.evidenceStatus)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+      </section>
+
+      {error || research?.message ? <p className="border border-[#D9D0C4] bg-[#FBFAF7] p-3 text-sm leading-6 text-[#625B53]">{formatDisplayText(error || research?.message, "추가 데이터 필요")}</p> : null}
+
+      <section className="grid gap-3 lg:grid-cols-3">
+        <AnalysisBox title="왜 이 상품들이 팔리는가" text={formatDisplayText(research?.aiAnalysis.summary, "추가 데이터 필요")} />
+        <AnalysisBox title="가격 포지션" text={formatDisplayText(research?.aiAnalysis.pricePosition, "근거 부족")} />
+        <AnalysisBox title="CEO 실행 제안" text={research?.aiAnalysis.recommendedAction || "동일 카테고리 쿠팡 상품 데이터를 추가 확인하세요."} />
+      </section>
+
+      <div className="grid gap-3">
+        {competitors.map((competitor, index) => (
+          <article key={`${competitor.productName}-${index}`} className="grid gap-4 border border-[#D9D0C4] bg-white p-4 lg:grid-cols-[120px_1fr]">
+              <div className="flex h-[120px] items-center justify-center border border-[#E5DED5] bg-[#FBFAF7] text-center text-xs text-[#8A8277]">
+              {competitor.thumbnailUrl ? <Image src={competitor.thumbnailUrl} alt="" width={120} height={120} unoptimized className="h-full w-full object-cover" /> : "썸네일 근거 부족"}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="border border-[#111111] px-2 py-1 text-xs font-semibold">{formatBadge(competitor.evidenceStatus)}</span>
+                <span className="text-xs text-[#8A8277]">#{index + 1}</span>
+              </div>
+              <h3 className="mt-2 text-lg font-semibold">
+                {competitor.productUrl ? (
+                  <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+                    {competitor.productName}
+                  </a>
+                ) : (
+                  competitor.productName
+                )}
+              </h3>
+              <div className="mt-3 grid gap-2 md:grid-cols-5">
+                <SmallFact label="가격" value={formatDisplayText(competitor.price, "근거 부족")} />
+                <SmallFact label="리뷰 수" value={formatDisplayText(competitor.reviewCount, "근거 부족")} />
+                <SmallFact label="평점" value={formatDisplayText(competitor.rating, "근거 부족")} />
+                <SmallFact label="판매자" value={formatDisplayText(competitor.seller, "근거 부족")} />
+                <SmallFact label="배송" value={formatDisplayText(competitor.shippingInfo, "근거 부족")} />
+              </div>
+              <p className="mt-3 text-xs leading-5 text-[#8A8277]">관련도 {competitor.relevanceScore}점 · {formatDisplayText(competitor.relevanceReason, "카테고리 관련도 추가 확인 필요")}</p>
+              <div className="mt-3 grid gap-3 lg:grid-cols-4">
+                <InsightCard title="잘 팔리는 이유" text={formatDisplayText(competitor.whyItSells, "추가 데이터 필요")} />
+                <InsightCard title="고객이 좋아하는 포인트" text={formatListSummary(competitor.repeatedReviewPros, competitor.sellingPoints)} />
+                <InsightCard title="약점" text={formatListSummary(competitor.repeatedReviewCons, ["근거 부족"])} />
+                <InsightCard title="VINIMINI 추천 전략" text={formatListSummary(competitor.differentiationHints, ["차별화 포인트 추가 분석이 필요합니다."])} />
+              </div>
+              <div className="mt-3 grid gap-3 lg:grid-cols-3">
+                <TextList title="판매 포인트" items={formatDisplayList(competitor.sellingPoints)} />
+                <TextList title="썸네일 특징" items={formatDisplayList(competitor.thumbnailFeatures)} />
+                <TextList title="상세페이지 특징" items={formatDisplayList(competitor.detailPageFeatures)} />
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
 
       <section className="grid gap-3 lg:grid-cols-3">
-        <AnalysisBox title="경쟁 강도" text={research?.aiAnalysis.competitionStrength || "MORE DATA REQUIRED"} />
-        <AnalysisBox title="리뷰 장벽" text={research?.aiAnalysis.reviewBarrier || "SOURCE LIMITED"} />
-        <AnalysisBox title="CEO 실행 제안" text={research?.aiAnalysis.recommendedAction || "검증 가능한 쿠팡 공개 상품 데이터를 추가로 확인하세요."} />
+        <AnalysisBox title="경쟁 강도" text={formatDisplayText(research?.aiAnalysis.competitionStrength, "추가 데이터 필요")} />
+        <AnalysisBox title="리뷰 장벽" text={formatDisplayText(research?.aiAnalysis.reviewBarrier, "근거 부족")} />
+        <AnalysisBox title="썸네일 패턴" text={formatDisplayText(research?.aiAnalysis.thumbnailPattern, "추가 데이터 필요")} />
       </section>
 
-      <section className="border border-[#D9D0C4] bg-[#FBFAF7] p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8277]">상세페이지 개선 힌트</p>
-        <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#625B53]">
-          {(research?.aiAnalysis.detailPageHints ?? ["MORE DATA REQUIRED"]).map((hint) => (
-            <li key={hint}>- {hint}</li>
-          ))}
-        </ul>
+      <section className="grid gap-3 lg:grid-cols-3">
+        <TextPanel title="상세페이지 강점" items={formatDisplayList(research?.aiAnalysis.detailPageStrengths ?? ["추가 데이터 필요"])} />
+        <TextPanel title="고객 불만" items={formatDisplayList(research?.aiAnalysis.customerComplaints ?? ["근거 부족"])} />
+        <TextPanel title="차별화 포인트" items={formatDisplayList(research?.aiAnalysis.differentiationPoints ?? ["추가 데이터 필요"])} />
+      </section>
+
+      {research?.excludedCompetitors?.length ? (
+        <section className="border border-[#D9D0C4] bg-[#FBFAF7] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8277]">보조 검토</p>
+          <h3 className="mt-2 text-lg font-semibold">관련도 낮은 제외 후보</h3>
+          <p className="mt-1 text-sm leading-6 text-[#625B53]">OpenAI가 확인한 쿠팡 공개 상품은 삭제하지 않고, 카테고리 관련도가 낮으면 이곳에 보관합니다.</p>
+          <div className="mt-3 grid gap-2">
+            {research.excludedCompetitors.map((item) => (
+              <div key={`${item.productName}-${item.productUrl}`} className="grid gap-2 border border-[#E5DED5] bg-white p-3 text-sm md:grid-cols-[1fr_auto_auto] md:items-center">
+                <div>
+                  <p className="font-semibold">{item.productName}</p>
+                  <p className="mt-1 text-xs text-[#8A8277]">{formatDisplayText(item.relevanceReason, "카테고리 관련도 낮음")}</p>
+                </div>
+                <p className="text-xs font-semibold text-[#625B53]">관련도 {item.relevanceScore}점</p>
+                {item.productUrl ? (
+                  <a href={item.productUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold underline underline-offset-4">
+                    쿠팡 상품 열기
+                  </a>
+                ) : (
+                  <span className="text-xs text-[#8A8277]">링크 근거 부족</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid gap-3 border border-[#D9D0C4] bg-[#FBFAF7] p-4 lg:grid-cols-[1fr_1.4fr]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8277]">보조 정보</p>
+          <p className="mt-2 text-lg font-semibold">{research?.categoryProfile.baseCategory || product.category}</p>
+          <p className="mt-2 text-sm leading-6 text-[#625B53]">
+            다른 카테고리 상품은 제외했습니다. 아래 정보는 리서치 품질과 비용 관리 상태를 확인하기 위한 보조 정보입니다.
+          </p>
+        </div>
+        <div className="grid gap-3">
+          <div className="flex flex-wrap gap-2">
+            {(research?.categoryProfile.allowedKeywordExpansion ?? [product.productName]).map((keyword) => (
+              <span key={keyword} className="border border-[#D9D0C4] bg-white px-3 py-1 text-xs text-[#625B53]">
+                {keyword}
+              </span>
+            ))}
+          </div>
+          <div className="grid gap-2 md:grid-cols-4">
+            <Metric label="캐시 상태" value={isLoading ? "리서치 중" : formatStatus(research?.cacheStatus)} />
+            <Metric label="오늘 AI 호출" value={`${research?.finance.todayOpenAiCalls ?? 0}회`} />
+            <Metric label="캐시 적중률" value={`${research?.finance.cacheHitRate ?? 0}%`} />
+            <Metric label="중복 요청 방지" value={`${research?.finance.duplicateRequestsPrevented ?? 0}회`} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(research?.sourceBadges ?? ["SOURCE LIMITED"]).map((badge) => (
+              <span key={badge} className="border border-[#D9D0C4] bg-white px-3 py-1 text-xs font-semibold text-[#625B53]">
+                {formatBadge(badge)}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
       <SourceLimitedNotice />
@@ -178,14 +308,26 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
 function createFallbackCompetitors(product: CoupangOpportunity): MarketResearchCompetitor[] {
   return [
     {
-      productName: `${product.category} 경쟁상품`,
-      price: "SOURCE LIMITED",
-      reviewCount: "SOURCE LIMITED",
-      rating: "SOURCE LIMITED",
+      productName: `${product.productName} 경쟁상품`,
+      price: "근거 부족",
+      reviewCount: "근거 부족",
+      rating: "근거 부족",
+      seller: "근거 부족",
+      shippingInfo: "근거 부족",
+      rocketDelivery: "근거 부족",
       productUrl: "",
       thumbnailUrl: "",
-      sellingPoints: ["쿠팡 공개 웹에서 검증 가능한 데이터가 필요합니다."],
+      sellingPoints: ["동일 카테고리 쿠팡 공개 근거가 필요합니다."],
+      thumbnailFeatures: ["추가 데이터 필요"],
+      firstScreenFeatures: ["추가 데이터 필요"],
+      detailPageFeatures: ["추가 데이터 필요"],
+      repeatedReviewPros: ["근거 부족"],
+      repeatedReviewCons: ["근거 부족"],
+      differentiationHints: ["추가 데이터 필요"],
+      whyItSells: "추가 데이터 필요",
       evidenceStatus: "SOURCE LIMITED",
+      relevanceScore: 0,
+      relevanceReason: "검증 가능한 쿠팡 상품 근거가 아직 없습니다.",
     },
   ];
 }
@@ -199,6 +341,50 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SmallFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-l border-[#D9D0C4] pl-3">
+      <p className="text-[11px] text-[#8A8277]">{label}</p>
+      <p className="mt-1 text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function TextList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="border border-[#E5DED5] bg-[#FBFAF7] p-3">
+      <p className="text-xs font-semibold text-[#8A8277]">{title}</p>
+      <ul className="mt-2 grid gap-1 text-sm leading-6 text-[#625B53]">
+        {items.map((item) => (
+          <li key={item}>- {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InsightCard({ title, text }: { title: string; text: string }) {
+  return (
+    <article className="border border-[#E5DED5] bg-[#FBFAF7] p-3">
+      <p className="text-xs font-semibold text-[#8A8277]">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-[#625B53]">{text}</p>
+    </article>
+  );
+}
+
+function TextPanel({ title, items }: { title: string; items: string[] }) {
+  return (
+    <article className="border border-[#D9D0C4] bg-[#FBFAF7] p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">{title}</p>
+      <ul className="mt-2 grid gap-2 text-sm leading-6 text-[#625B53]">
+        {items.map((item) => (
+          <li key={item}>- {item}</li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
 function AnalysisBox({ title, text }: { title: string; text: string }) {
   return (
     <article className="border border-[#D9D0C4] bg-[#FBFAF7] p-4">
@@ -206,4 +392,45 @@ function AnalysisBox({ title, text }: { title: string; text: string }) {
       <p className="mt-2 text-sm leading-6 text-[#625B53]">{text}</p>
     </article>
   );
+}
+
+function formatStatus(status?: string) {
+  const labels: Record<string, string> = {
+    "Fresh Analysis": "새 분석",
+    "Cached Analysis": "캐시 재사용",
+    "OPENAI API NOT CONNECTED": "OpenAI API 미연결",
+    "Analysis Limited": "분석 제한",
+  };
+  return labels[status || ""] || "근거 부족";
+}
+
+function formatBadge(value: string) {
+  const labels: Record<string, string> = {
+    "VERIFIED INFORMATION": "확인된 정보",
+    "PARTIAL DATA": "부분 확인",
+    "AI ANALYSIS": "AI 분석",
+    "SOURCE LIMITED": "근거 부족",
+    "MORE DATA REQUIRED": "추가 데이터 필요",
+    "OPENAI MARKET RESEARCH": "AI 시장 리서치",
+    "COUPANG PUBLIC WEB": "쿠팡 공개 정보",
+    "COUPANG ADS TREND INSIGHTS": "쿠팡 광고 트렌드",
+  };
+  return labels[value] || formatDisplayText(value, "근거 부족");
+}
+
+function formatDisplayList(items: string[]) {
+  return items.map((item) => formatDisplayText(item, "추가 데이터 필요"));
+}
+
+function formatListSummary(primary: string[], fallback: string[]) {
+  return formatDisplayList(primary.length ? primary : fallback)
+    .slice(0, 2)
+    .join(" / ");
+}
+
+function formatDisplayText(value: string | undefined, fallback: string) {
+  if (!value) return fallback;
+  if (value === "SOURCE LIMITED") return "근거 부족";
+  if (value === "MORE DATA REQUIRED") return "추가 데이터 필요";
+  return value.replaceAll("SOURCE LIMITED", "근거 부족").replaceAll("MORE DATA REQUIRED", "추가 데이터 필요");
 }
