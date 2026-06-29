@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const keyword = searchParams.get("keyword")?.trim() || "여성패션";
+  const keyword = searchParams.get("keyword")?.trim() || "쿠팡 여성패션";
   const url = searchParams.get("url")?.trim() || "";
   const forceRefresh = searchParams.get("forceRefresh") === "true";
 

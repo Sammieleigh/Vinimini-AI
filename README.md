@@ -145,6 +145,18 @@ Implementation:
 - Planning Room competitor analysis fetches market research once, then reuses cache unless the CEO requests a fresh research run.
 - Competitor fields include product name, price, review count, rating, product URL, thumbnail URL, selling points, competition strength, review barrier, and detail-page hints.
 - Verified values are labeled `VERIFIED INFORMATION`, AI interpretation is labeled `AI ANALYSIS`, and uncertain fields remain `SOURCE LIMITED` or "More data required."
+
+### Sprint 10 Coupang-First Market Research
+
+VINIMINI now prioritizes Coupang-first market intelligence for Opportunity Center and Planning Room.
+
+- OpenAI Market Research Engine prioritizes Coupang public product pages, Coupang Ads Trend Insights, and public Coupang-related web information.
+- Coupang Ads Trend Insights (`https://ads.coupang.com/trends`) is treated as an official reference for seasonal, category, keyword, purchase, and advertising trend context. It supports `Why Now` and seasonality decisions, but it does not replace live product ranking or verified product data.
+- Naver DataLab, Naver Shopping Search, and Naver SearchAd remain supplemental signals only.
+- Opportunity Center TOP10 now labels Coupang public research, Coupang Ads Trend Insights, OpenAI analysis, and source limits separately.
+- Planning Room competitor analysis now uses Coupang-first OpenAI market research, with 24-hour keyword/page URL/source hash/prompt version/Korean date caching.
+- The UI consistently separates `VERIFIED INFORMATION`, `AI ANALYSIS`, `SOURCE LIMITED`, and `MORE DATA REQUIRED`.
+- Finance Director AI tracks OpenAI calls, cache hit rate, duplicate requests prevented, and estimated cost saved.
 - Opportunity Center cards now indicate that OpenAI market research is available in Planning Room instead of triggering repeated calls from every card.
 
 ### Planning Room v1

@@ -47,17 +47,14 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
     if (showLoading) setError("");
 
     try {
-      const params = new URLSearchParams({
-        keyword: product.productName,
-        url: product.productUrl || "",
-      });
+      const params = new URLSearchParams({ keyword: product.productName, url: product.productUrl || "" });
       if (forceRefresh) params.set("forceRefresh", "true");
       const response = await fetch(`/api/openai/market-research?${params.toString()}`);
       const payload = (await response.json()) as MarketResearchResult & { message?: string };
       if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
       setResearch(payload);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "OpenAI 경쟁상품 리서치를 완료하지 못했습니다.");
+      setError(nextError instanceof Error ? nextError.message : "OpenAI 쿠팡 경쟁상품 리서치를 완료하지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -68,23 +65,19 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
 
     async function loadInitialResearch() {
       try {
-        const params = new URLSearchParams({
-          keyword: product.productName,
-          url: product.productUrl || "",
-        });
+        const params = new URLSearchParams({ keyword: product.productName, url: product.productUrl || "" });
         const response = await fetch(`/api/openai/market-research?${params.toString()}`);
         const payload = (await response.json()) as MarketResearchResult & { message?: string };
         if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
         if (isMounted) setResearch(payload);
       } catch (nextError) {
-        if (isMounted) setError(nextError instanceof Error ? nextError.message : "OpenAI 경쟁상품 리서치를 완료하지 못했습니다.");
+        if (isMounted) setError(nextError instanceof Error ? nextError.message : "OpenAI 쿠팡 경쟁상품 리서치를 완료하지 못했습니다.");
       } finally {
         if (isMounted) setIsLoading(false);
       }
     }
 
     loadInitialResearch();
-
     return () => {
       isMounted = false;
     };
@@ -96,25 +89,15 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
     <div className="grid gap-5">
       <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
         <SectionHeading
-          eyebrow="OpenAI Executive Market Research Engine"
-          title="경쟁상품 리서치"
-          text="OpenAI가 쿠팡과 공개 웹에서 확인 가능한 상품 정보를 조사합니다. 확인된 값은 VERIFIED INFORMATION, 해석은 AI ANALYSIS, 근거 부족은 SOURCE LIMITED로 구분합니다."
+          eyebrow="OpenAI Market Research Engine"
+          title="쿠팡 중심 경쟁사 분석"
+          text="OpenAI가 쿠팡 공개 상품 페이지, 쿠팡 Ads Trend Insights, 공개 쿠팡 관련 정보를 우선 조사합니다. 확인된 값은 VERIFIED INFORMATION, 해석은 AI ANALYSIS, 부족한 근거는 SOURCE LIMITED 또는 MORE DATA REQUIRED로 구분합니다."
         />
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <button
-            type="button"
-            onClick={() => loadResearch(true)}
-            disabled={isLoading}
-            className="border border-[#111111] bg-[#111111] px-4 py-3 text-sm font-semibold text-[#F4EFE7] disabled:opacity-60"
-          >
+          <button type="button" onClick={() => loadResearch(true)} disabled={isLoading} className="border border-[#111111] bg-[#111111] px-4 py-3 text-sm font-semibold text-[#F4EFE7] disabled:opacity-60">
             새로 리서치
           </button>
-          <button
-            type="button"
-            onClick={() => loadResearch(false)}
-            disabled={isLoading}
-            className="border border-[#D9D0C4] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#625B53] disabled:opacity-60"
-          >
+          <button type="button" onClick={() => loadResearch(false)} disabled={isLoading} className="border border-[#D9D0C4] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#625B53] disabled:opacity-60">
             캐시 사용
           </button>
         </div>
@@ -135,9 +118,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
         ))}
       </div>
 
-      {error || research?.message ? (
-        <p className="border border-[#D9D0C4] bg-[#FBFAF7] p-3 text-sm leading-6 text-[#625B53]">{error || research?.message}</p>
-      ) : null}
+      {error || research?.message ? <p className="border border-[#D9D0C4] bg-[#FBFAF7] p-3 text-sm leading-6 text-[#625B53]">{error || research?.message}</p> : null}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] border-collapse text-left text-sm">
@@ -175,15 +156,15 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
       </div>
 
       <section className="grid gap-3 lg:grid-cols-3">
-        <AnalysisBox title="경쟁 강도" text={research?.aiAnalysis.competitionStrength || "추가 데이터 필요"} />
+        <AnalysisBox title="경쟁 강도" text={research?.aiAnalysis.competitionStrength || "MORE DATA REQUIRED"} />
         <AnalysisBox title="리뷰 장벽" text={research?.aiAnalysis.reviewBarrier || "SOURCE LIMITED"} />
-        <AnalysisBox title="CEO 실행 제안" text={research?.aiAnalysis.recommendedAction || "검증 가능한 공개 상품 데이터를 추가로 확인하세요."} />
+        <AnalysisBox title="CEO 실행 제안" text={research?.aiAnalysis.recommendedAction || "검증 가능한 쿠팡 공개 상품 데이터를 추가로 확인하세요."} />
       </section>
 
       <section className="border border-[#D9D0C4] bg-[#FBFAF7] p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8A8277]">상세페이지 개선 힌트</p>
         <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#625B53]">
-          {(research?.aiAnalysis.detailPageHints ?? ["추가 데이터 필요"]).map((hint) => (
+          {(research?.aiAnalysis.detailPageHints ?? ["MORE DATA REQUIRED"]).map((hint) => (
             <li key={hint}>- {hint}</li>
           ))}
         </ul>
@@ -203,7 +184,7 @@ function createFallbackCompetitors(product: CoupangOpportunity): MarketResearchC
       rating: "SOURCE LIMITED",
       productUrl: "",
       thumbnailUrl: "",
-      sellingPoints: ["OpenAI 또는 공개 웹 검증 데이터가 필요합니다."],
+      sellingPoints: ["쿠팡 공개 웹에서 검증 가능한 데이터가 필요합니다."],
       evidenceStatus: "SOURCE LIMITED",
     },
   ];

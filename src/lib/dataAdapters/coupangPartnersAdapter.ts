@@ -30,7 +30,7 @@ export async function fetchCoupangPartnersProducts(keyword: string): Promise<Ada
       source: "Coupang Partners API",
       status: "API NOT CONNECTED",
       keyword: normalizedKeyword,
-      message: "쿠팡 파트너스 공식 API 키가 없어 COUPANG API NOT CONNECTED 상태로 표시합니다.",
+      message: "쿠팡 공식 API 키가 없어 COUPANG API NOT CONNECTED 상태로 표시합니다.",
       data: [],
       fetchedAt: null,
     };
@@ -60,8 +60,8 @@ export async function fetchCoupangPartnersProducts(keyword: string): Promise<Ada
       status: products.length ? "LIVE DATA" : "PARTIAL DATA",
       keyword: normalizedKeyword,
       message: products.length
-        ? "쿠팡 파트너스 공식 API 상품 정보를 연결했습니다."
-        : "쿠팡 파트너스 응답은 성공했지만 상품 정보가 비어 있습니다.",
+        ? "쿠팡 공식 API 상품 정보를 연결했습니다."
+        : "쿠팡 공식 API 응답은 성공했지만 상품 정보가 비어 있습니다.",
       data: products.map(mapProduct),
       fetchedAt: new Date().toISOString(),
     };
@@ -70,7 +70,7 @@ export async function fetchCoupangPartnersProducts(keyword: string): Promise<Ada
       source: "Coupang Partners API",
       status: "SOURCE LIMITED",
       keyword: normalizedKeyword,
-      message: `쿠팡 파트너스 공식 API 호출에 실패했습니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      message: `쿠팡 공식 API 호출에 실패했습니다. SOURCE LIMITED로 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: [],
       fetchedAt: new Date().toISOString(),
     };
@@ -95,7 +95,7 @@ function buildQuery(params: Record<string, string>) {
 function mapProduct(product: CoupangPartnersProduct): PartnerProduct {
   return {
     productName: product.productName || "상품명 미제공",
-    price: typeof product.productPrice === "number" ? `${product.productPrice.toLocaleString("ko-KR")}원` : "-",
+    price: typeof product.productPrice === "number" ? `${product.productPrice.toLocaleString("ko-KR")}원` : "SOURCE LIMITED",
     image: product.productImage || "",
     productUrl: product.productUrl || "",
     category: product.categoryName || "카테고리 미제공",

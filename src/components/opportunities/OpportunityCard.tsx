@@ -4,8 +4,8 @@ import type { CoupangOpportunity } from "@/lib/types";
 export function OpportunityCard({ item, index }: { item: CoupangOpportunity; index: number }) {
   const sourceBadges =
     item.dataSource === "coupang"
-      ? ["COUPANG WING OPERATIONS", "SOURCE LIMITED"]
-      : ["NAVER DATALAB", "OPENAI MARKET RESEARCH READY", "SOURCE LIMITED"];
+      ? ["COUPANG PUBLIC WEB", "VERIFIED INFORMATION", "AI ANALYSIS"]
+      : ["COUPANG PUBLIC WEB", "COUPANG ADS TREND INSIGHTS", "OPENAI MARKET RESEARCH", "SOURCE LIMITED"];
 
   return (
     <Link
@@ -25,14 +25,14 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
             <span
               key={`${item.id}-${badge}`}
               className={`rounded-full border px-3 py-1 text-xs ${
-                badge === "COUPANG WING OPERATIONS" ? "border-[#111111] bg-[#111111] text-[#F6F2EC]" : "border-[#D9D0C4] text-[#625B53]"
+                badge === "COUPANG PUBLIC WEB" ? "border-[#111111] bg-[#111111] text-[#F6F2EC]" : "border-[#D9D0C4] text-[#625B53]"
               }`}
             >
               {badge}
             </span>
           ))}
-          {item.isRocket ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">로켓</span> : null}
-          {item.isAd ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">광고</span> : null}
+          {item.isRocket ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">로켓 신호</span> : null}
+          {item.isAd ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">광고 신호</span> : null}
         </div>
 
         <p className="mt-3 max-w-3xl text-sm leading-7 text-[#625B53]">
@@ -40,15 +40,15 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <DecisionLine label="검색 성장률" value={item.confidence.evidence[1] ?? "추가 데이터 필요"} />
+          <DecisionLine label="쿠팡 리서치 우선순위" value="쿠팡 공개 상품 페이지와 쿠팡 Ads Trend Insights를 먼저 확인합니다." />
           <DecisionLine label="경쟁 강도" value={`${item.lowCompetition} · 경쟁 후보 ${item.competitorCount}개`} />
           <DecisionLine label="CEO 실행 제안" value={item.actionPlan[0] ?? item.recommendation} />
-          <DecisionLine label="신뢰도" value={`${item.confidence.percent}% · ${item.confidence.evidence[0] ?? "근거 추가 필요"}`} />
+          <DecisionLine label="신뢰도" value={`${item.confidence.percent}% · ${item.confidence.evidence[0] ?? "추가 근거 필요"}`} />
         </div>
 
         <p className="mt-3 text-sm font-medium text-[#111111]">경영진 근거: {item.reasons.slice(0, 3).join(" · ")}</p>
         <p className="mt-2 text-xs text-[#625B53]">
-          Planning Room에서 OpenAI Executive Market Research Engine이 공개 웹 기반 경쟁상품 리서치를 실행합니다.
+          Planning Room에서 OpenAI Market Research Engine이 쿠팡 공개 정보를 우선 조사하고, 필요한 경우 다른 공개 소스로 분석 품질을 보강합니다.
         </p>
       </div>
 
