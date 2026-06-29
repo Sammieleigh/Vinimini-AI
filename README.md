@@ -97,6 +97,7 @@ Implementation:
 - Naver DataLab is used as source data, not cached AI reasoning.
 - OpenAI analysis cache keys include date, task type, keyword set hash, source data hash, model name, and prompt version.
 - The UI displays cache state, Today's OpenAI Calls, Cache Hit Rate, Estimated Cost Saved, and the Midnight Strategy Room meeting timeline.
+- Opportunity Center TOP10 cards now show CEO decision fields: Opportunity Score, Entry Difficulty, Estimated Margin, Search Growth, Competition, Why Now, Recommended Action, Source Badges, and Confidence.
 
 ### UX Principles
 
