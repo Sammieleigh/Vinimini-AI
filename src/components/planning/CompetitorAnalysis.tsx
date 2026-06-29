@@ -26,7 +26,15 @@ type MarketResearchCompetitor = {
   relevanceScore: number;
   relevanceReason: string;
   evidenceStatus: "VERIFIED INFORMATION" | "PARTIAL DATA" | "SOURCE LIMITED";
-  researchSource: "Coupang Official API" | "Coupang HTML" | "OpenAI Search" | "Coupang Ads Trend Insights" | "Other Public Sources";
+  researchSource: "Naver Search API" | "Coupang Official API" | "Coupang HTML" | "OpenAI Analysis" | "Coupang Ads Trend Insights" | "Other Public Sources";
+  sourceFlags: {
+    openAiSearch: boolean;
+    openAiAnalysis: boolean;
+    naverSearch: boolean;
+    htmlParser: boolean;
+    coupangApi: boolean;
+    adsInsight: boolean;
+  };
 };
 
 type MarketResearchResult = {
@@ -41,6 +49,47 @@ type MarketResearchResult = {
   competitors: MarketResearchCompetitor[];
   excludedCompetitors: MarketResearchCompetitor[];
   searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number; status: "COLLECTED" | "COUPANG COLLECTION FAILED" }>;
+  debug?: {
+    policy: "development" | "production";
+    dailyLimit: number;
+    modelName: string;
+    toolName: string;
+    apiCallCode: string;
+    rawResponsesEnabled: boolean;
+    openAiSearchAttempts: Array<{
+      query: string;
+      modelName: string;
+      toolName: string;
+      toolList: string[];
+      apiCallCode: string;
+      prompt: string;
+      requestJson: string;
+      rawResponse: string;
+      responseText: string;
+      responseLength: number;
+      collectedCoupangUrlCount: number;
+      extractedCoupangUrls: string[];
+      extractedProducts: Array<Partial<MarketResearchCompetitor>>;
+      beforeFilterCount: number;
+      afterFilterCount: number;
+      removed: Array<{ productName: string; productUrl: string; reason: string }>;
+      zeroStage: string;
+    }>;
+    zeroStage: string;
+    finalSelectedTop10: Array<{ productName: string; productUrl: string; relevanceScore: number; researchSource: string }>;
+    pipeline: {
+      promptSent: number;
+      responseReceived: number;
+      urlParsed: number;
+      jsonParsed: number;
+      candidateCollected: number;
+      afterMerge: number;
+      categoryFilter: number;
+      deduplicate: number;
+      top10: number;
+      mergeRate: number;
+    };
+  };
   selectedCount: number;
   aiAnalysis: {
     competitionStrength: string;
@@ -177,7 +226,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                   </td>
                   <td className="px-4 py-4">{competitor.relevanceScore}점</td>
                   <td className="px-4 py-4">{formatBadge(competitor.evidenceStatus)}</td>
-                  <td className="px-4 py-4">{formatBadge(competitor.researchSource)}</td>
+                  <td className="px-4 py-4"><SourceMatrix competitor={competitor} /></td>
                 </tr>
               ))
             ) : (
@@ -208,7 +257,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="border border-[#111111] px-2 py-1 text-xs font-semibold">{formatBadge(competitor.evidenceStatus)}</span>
-                <span className="border border-[#D9D0C4] px-2 py-1 text-xs font-semibold text-[#625B53]">{formatBadge(competitor.researchSource)}</span>
+                <span className="border border-[#D9D0C4] px-2 py-1 text-xs font-semibold text-[#625B53]">{isMergedSource(competitor) ? "Merged" : formatBadge(competitor.researchSource)}</span>
                 <span className="text-xs text-[#8A8277]">#{index + 1}</span>
               </div>
               <h3 className="mt-2 text-lg font-semibold">
@@ -343,6 +392,79 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
             <p className="mt-2 font-semibold">{(research?.selectedCount ?? competitors.length) >= 5 ? "종료" : "키워드 확장 중"}</p>
             <p className="mt-1">Selected: Top {research?.selectedCount ?? competitors.length}</p>
           </div>
+          {research?.debug ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">Development Debug</p>
+              <p className="mt-2">정책: {research.debug.policy === "development" ? "개발 제한 OFF" : "운영 제한 ON"}</p>
+              <p className="mt-1">Model: {research.debug.modelName}</p>
+              <p className="mt-1">Tool: {research.debug.toolName} 사용</p>
+              <p className="mt-1">API 호출 코드: {research.debug.apiCallCode}</p>
+              <p className="mt-1">Daily Limit: {research.debug.dailyLimit.toLocaleString("ko-KR")}회</p>
+              <div className="mt-3 grid gap-2 md:grid-cols-7">
+                <Metric label="Prompt Sent" value={`${research.debug.pipeline.promptSent}`} />
+                <Metric label="Response" value={`${research.debug.pipeline.responseReceived}`} />
+                <Metric label="URL 확보" value={`${research.debug.pipeline.urlParsed}`} />
+                <Metric label="후보" value={`${research.debug.pipeline.candidateCollected}`} />
+                <Metric label="중복 제거 후" value={`${research.debug.pipeline.afterMerge}`} />
+                <Metric label="카테고리 필터" value={`${research.debug.pipeline.categoryFilter}`} />
+                <Metric label="병합률" value={`${research.debug.pipeline.mergeRate}%`} />
+                <Metric label="TOP10" value={`${research.debug.pipeline.top10}`} />
+              </div>
+              <p className="mt-2 text-sm font-semibold text-[#625B53]">0개 발생 위치: {research.debug.zeroStage}</p>
+              <div className="mt-2 grid gap-2">
+                {research.debug.openAiSearchAttempts.map((item) => (
+                  <div key={item.query} className="border border-[#E5DED5] bg-[#FBFAF7] p-3">
+                    <p className="font-semibold break-all">검색 키워드: {item.query}</p>
+                    <p className="mt-1 text-xs text-[#8A8277]">Model: {item.modelName}</p>
+                    <p className="mt-1 text-xs text-[#8A8277]">Tool: {item.toolName} 사용</p>
+                    <p className="mt-1 text-xs text-[#8A8277]">Tool 목록: {item.toolList.join(", ") || "없음"}</p>
+                    <p className="mt-1 text-xs text-[#8A8277]">API 호출 코드: {item.apiCallCode}</p>
+                    <div className="mt-2 grid gap-2 md:grid-cols-3">
+                      <Metric label="Coupang URL" value={`${item.collectedCoupangUrlCount}개`} />
+                      <Metric label="필터 전" value={`${item.beforeFilterCount}개`} />
+                      <Metric label="필터 후" value={`${item.afterFilterCount}개`} />
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-[#625B53]">0개 발생 위치: {item.zeroStage}</p>
+                    <p className="mt-1 text-xs text-[#8A8277]">Raw Response 길이: {item.responseLength.toLocaleString("ko-KR")}자</p>
+                    <p className="mt-3 text-xs font-semibold text-[#8A8277]">OpenAI 분석 Prompt</p>
+                    <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">{item.prompt}</pre>
+                    <p className="mt-3 text-xs font-semibold text-[#8A8277]">OpenAI API Request JSON</p>
+                    <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">{item.requestJson}</pre>
+                    <p className="mt-3 text-xs font-semibold text-[#8A8277]">OpenAI Raw Response 원문</p>
+                    <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">{item.rawResponse}</pre>
+                    <p className="mt-3 text-xs font-semibold text-[#8A8277]">파싱 전 output_text</p>
+                    <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">{item.responseText}</pre>
+                    <p className="mt-3 text-xs font-semibold text-[#8A8277]">추출된 coupang.com URL</p>
+                    <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">{JSON.stringify(item.extractedCoupangUrls, null, 2)}</pre>
+                    <p className="mt-3 text-xs font-semibold text-[#8A8277]">추출된 상품 객체(JSON)</p>
+                    <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">{JSON.stringify(item.extractedProducts, null, 2)}</pre>
+                    {item.removed.length ? (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold text-[#8A8277]">제거된 이유</p>
+                        <ul className="mt-1 grid gap-1">
+                          {item.removed.map((removed) => (
+                            <li key={`${item.query}-${removed.productName}-${removed.reason}`} className="break-all text-xs">
+                              {removed.reason}: {removed.productName} {removed.productUrl ? `(${removed.productUrl})` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">최종 선택 TOP10</p>
+                <div className="mt-2 grid gap-1">
+                  {research.debug.finalSelectedTop10.map((item, index) => (
+                    <p key={`${item.productUrl}-${index}`} className="break-all text-xs">
+                      {index + 1}. {item.productName} / 관련도 {item.relevanceScore}점 / {item.researchSource} / {item.productUrl}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </details>
 
@@ -367,6 +489,31 @@ function SmallFact({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-semibold">{value}</p>
     </div>
   );
+}
+
+function SourceMatrix({ competitor }: { competitor: MarketResearchCompetitor }) {
+  const rows = [
+    ["네이버 검색", competitor.sourceFlags.naverSearch],
+    ["OpenAI 분석", competitor.sourceFlags.openAiAnalysis],
+    ["HTML 파서", competitor.sourceFlags.htmlParser],
+    ["쿠팡 API", competitor.sourceFlags.coupangApi],
+    ["광고 트렌드", competitor.sourceFlags.adsInsight],
+  ] as const;
+
+  return (
+    <div className="grid gap-1 text-xs">
+      {rows.map(([label, enabled]) => (
+        <p key={label} className={enabled ? "font-semibold text-[#111111]" : "text-[#8A8277]"}>
+          {enabled ? "✓" : "×"} {label}
+        </p>
+      ))}
+      {isMergedSource(competitor) ? <p className="mt-1 font-semibold text-[#625B53]">Merged</p> : null}
+    </div>
+  );
+}
+
+function isMergedSource(competitor: MarketResearchCompetitor) {
+  return [competitor.sourceFlags.naverSearch, competitor.sourceFlags.openAiSearch, competitor.sourceFlags.openAiAnalysis, competitor.sourceFlags.htmlParser, competitor.sourceFlags.coupangApi, competitor.sourceFlags.adsInsight].filter(Boolean).length > 1;
 }
 
 function TextList({ title, items }: { title: string; items: string[] }) {
@@ -433,9 +580,10 @@ function formatBadge(value: string) {
     "OPENAI MARKET RESEARCH": "AI 시장 리서치",
     "COUPANG PUBLIC WEB": "쿠팡 공개 정보",
     "COUPANG ADS TREND INSIGHTS": "쿠팡 광고 트렌드",
+    "Naver Search API": "네이버 검색 API",
     "Coupang Official API": "쿠팡 공식 API",
     "Coupang HTML": "쿠팡 HTML",
-    "OpenAI Search": "OpenAI 공개 검색",
+    "OpenAI Analysis": "OpenAI 분석",
     "Coupang Ads Trend Insights": "쿠팡 광고 트렌드",
     "Other Public Sources": "기타 공개 근거",
   };
@@ -460,8 +608,8 @@ function formatDisplayText(value: string | undefined, fallback: string) {
 }
 
 function formatSourceValue(value: string | undefined) {
-  if (!value) return "SOURCE LIMITED";
+  if (!value) return "근거 부족";
   const text = value.trim();
-  if (!text || text === "-" || text === "근거 부족" || text === "추가 데이터 필요" || text === "MORE DATA REQUIRED") return "SOURCE LIMITED";
+  if (!text || text === "-" || text === "근거 부족" || text === "추가 데이터 필요" || text === "MORE DATA REQUIRED") return "근거 부족";
   return text;
 }

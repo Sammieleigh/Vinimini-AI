@@ -56,3 +56,19 @@ export type NaverShoppingProduct = {
   brand: string;
   category: string;
 };
+
+export type NaverCoupangSearchProduct = {
+  productName: string;
+  productUrl: string;
+  sourceUrl: string;
+  thumbnailUrl: string;
+  price: string;
+  reviewCount: string;
+  rating: string;
+  seller: string;
+  shippingInfo: string;
+  rocketDelivery: string;
+  sourceQuery: string;
+  sourceDescription: string;
+  sourceType: "Naver Web Search" | "Naver Shopping Search";
+};
