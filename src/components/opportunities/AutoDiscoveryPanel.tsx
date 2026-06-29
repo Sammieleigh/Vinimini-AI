@@ -16,6 +16,18 @@ type AutoDiscoveryOpportunity = {
   adEntryPotential: string;
   status: "오늘 새 분석" | "캐시 재사용" | "최근 7일 제외" | "추가 데이터 필요";
   sourceBadges: string[];
+  verifiedSignals: {
+    searchGrowth: number | null;
+    totalMonthlySearchVolume: number | null;
+    pcMonthlySearchVolume: number | null;
+    mobileMonthlySearchVolume: number | null;
+    mobileSearchRatio: number | null;
+    pcSearchRatio: number | null;
+    competitionLevel: string;
+    seasonality: string;
+    coupangProductCount: number;
+    mobileCommerceFit: string;
+  };
 };
 
 type AutoDiscoveryMeetingStep = {
@@ -114,7 +126,7 @@ export function AutoDiscoveryPanel() {
       : data?.cacheStatus === "Cached Analysis"
         ? "캐시 재사용"
         : data?.cacheStatus === "OpenAI API NOT CONNECTED"
-          ? "OpenAI API 연결 안 됨"
+          ? "OpenAI API 미연결"
           : "추가 데이터 필요";
   const discussions = ensureExecutiveDiscussion(data?.aiDiscussion);
 
@@ -125,7 +137,8 @@ export function AutoDiscoveryPanel() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">AI 자동 탐색</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-normal">AI 경영진이 오늘의 후보를 먼저 탐색했습니다.</h2>
           <p className="mt-4 text-sm leading-7 text-[#E2D8CB]">
-            Good Morning, CEO. AI Executive Team이 밤사이 시장을 탐색하고 회의를 완료했습니다. 대표님은 검색하지 않고, 보고받고 결정만 하시면 됩니다.
+            Good Morning, CEO. AI Executive Team이 밤새 실제 연결 데이터를 확인하고 회의를 완료했습니다. 대표님은 검색하지 않고,
+            보고받고 결정만 하시면 됩니다.
           </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -225,8 +238,14 @@ export function AutoDiscoveryPanel() {
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <Metric label="기회 점수" value={`${item.opportunityScore}`} dark />
-              <Metric label="경쟁 강도" value={item.competitionStrength} dark />
+              <Metric label="전체 검색량" value={formatCount(item.verifiedSignals.totalMonthlySearchVolume)} dark />
+              <Metric label="모바일 검색 비중" value={formatPercent(item.verifiedSignals.mobileSearchRatio)} dark />
+              <Metric label="PC 검색 비중" value={formatPercent(item.verifiedSignals.pcSearchRatio)} dark />
+              <Metric label="검색 성장률" value={formatGrowth(item.verifiedSignals.searchGrowth)} dark />
+              <Metric label="경쟁도" value={item.verifiedSignals.competitionLevel} dark />
+              <Metric label="모바일 구매 적합도" value={item.verifiedSignals.mobileCommerceFit} dark />
               <Metric label="예상 마진" value={item.marginPotential} dark />
+              <Metric label="광고 진입" value={item.adEntryPotential} dark />
             </div>
           </article>
         ))}
@@ -234,7 +253,7 @@ export function AutoDiscoveryPanel() {
 
       {showTranscript ? (
         <div className="mt-5 border-t border-[#3D3933] pt-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">자정 전략 회의실</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">자정 전략 회의록</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {discussions.map((discussion) => (
               <article key={discussion.department} className="border border-[#3D3933] bg-[#181716] p-4">
@@ -287,21 +306,21 @@ function ensureExecutiveDiscussion(source?: AutoDiscoveryDiscussionStep[]) {
     decision: item.decision || "CEO 브리핑에 반영합니다.",
   }));
 
-  if (!next.some((item) => item.department.includes("Customer Insight") || item.department.includes("고객"))) {
+  if (!next.some((item) => item.department.includes("Customer Insight"))) {
     next.push({
       department: "Customer Insight Director AI",
       inputFromPrevious: "Pricing Director의 진입 가능 후보",
-      message: "고객 불만이 핏, 원단, 사이즈, 비침에 집중되는지 확인하고 상세페이지 개선으로 방어 가능한지 검토합니다.",
-      decision: "리뷰 리스크가 높은 후보는 CEO 실행 제안에 보완 액션을 붙입니다.",
+      message: "리뷰 원문 데이터가 없으면 불만을 만들어내지 않고 SOURCE LIMITED로 유지합니다.",
+      decision: "리뷰 리스크는 추가 데이터 필요로 표시합니다.",
     });
   }
 
-  if (!next.some((item) => item.department.includes("Learning") || item.department.includes("학습"))) {
+  if (!next.some((item) => item.department.includes("Learning"))) {
     next.push({
       department: "Learning Director AI",
-      inputFromPrevious: "Customer Insight Director의 고객 불안 분석",
-      message: "오늘 회의에서 검색 성장률만으로 판단하지 않고 고객 불안 해소 가능성을 함께 반영해야 한다는 점을 학습했습니다.",
-      decision: "내일 회의에는 리뷰 리스크와 상세페이지 개선 가능성의 가중치를 높입니다.",
+      inputFromPrevious: "Customer Insight Director의 검증 제한",
+      message: "오늘 회의에서 검색 성장률, 모바일 비중, 경쟁도 가중치를 함께 반영해야 한다는 점을 학습했습니다.",
+      decision: "다음 분석에서 모바일 구매 적합도와 광고 난이도를 더 정밀하게 반영합니다.",
     });
   }
 
@@ -323,16 +342,25 @@ function createFallbackDiscussion(): AutoDiscoveryDiscussionStep[] {
       decision: "상승 신호가 있는 후보를 우선 검토합니다.",
     },
     {
-      department: "Customer Insight Director AI",
-      inputFromPrevious: "Trend Director의 검색 성장 판단",
-      message: "고객 불안 요소를 함께 보지 않으면 검색량이 높아도 좋은 CEO 결정이 아닐 수 있습니다.",
-      decision: "리뷰 리스크와 상세페이지 개선 가능성을 회의에 포함합니다.",
-    },
-    {
       department: "CEO 비서 AI",
       inputFromPrevious: "각 Director의 검토 의견",
-      message: "캐시된 분석을 재사용하더라도 대표님이 볼 회의 흐름은 유지합니다.",
-      decision: "TOP10과 첫 실행 제안을 CEO 브리핑으로 정리합니다.",
+      message: "회의 내용을 CEO 브리핑으로 정리합니다.",
+      decision: "TOP10과 첫 실행 제안을 보고합니다.",
     },
   ];
+}
+
+function formatCount(value: number | null) {
+  if (value === null) return "추가 데이터 필요";
+  return `${value.toLocaleString("ko-KR")}회`;
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) return "추가 데이터 필요";
+  return `${value}%`;
+}
+
+function formatGrowth(value: number | null) {
+  if (value === null) return "추가 데이터 필요";
+  return `${value}%`;
 }

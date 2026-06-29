@@ -114,6 +114,22 @@ Implementation:
 - Finance Director keeps reporting Today's Calls, Cache Hit Rate, Estimated Cost Saved, and Monthly Cost Saved.
 - Finance Director also reports Duplicate Requests Prevented so cost optimization is visible to the CEO.
 
+### Sprint 8 Data Integration
+
+Sprint 8 starts replacing mock scoring assumptions with connected market signals.
+
+Implementation:
+
+- Naver DataLab now contributes real 90-day trend ratios, recent growth rate, and seasonality to Opportunity Score.
+- Naver SearchAd Keyword Tool stores total monthly search volume, PC monthly search volume, mobile monthly search volume, mobile search ratio, PC search ratio, competition level, and related keywords separately.
+- Mobile search ratio affects thumbnail importance and first-screen importance because Coupang women's fashion is mobile-first.
+- PC search ratio affects detail-page priorities such as price comparison, material explanation, and size chart clarity.
+- High mobile demand plus low competition increases new-seller opportunity scoring.
+- High PC and mobile demand together is treated as a large keyword with advertising competition risk.
+- Coupang Partners API remains the official product-data adapter for product name, image, price, product URL, category, and brand. If credentials are missing or the API fails, VINIMINI displays API NOT CONNECTED or SOURCE LIMITED instead of inventing product data.
+- Opportunity cards now surface total search volume, mobile search ratio, PC search ratio, search growth, competition level, and mobile commerce fit.
+- OpenAI remains the Executive Analysis Engine. It analyzes connected source data in batch and must not invent Coupang products, reviews, prices, rankings, or sales volume.
+
 ### Planning Room v1
 
 Planning Room v1 turns `/planning/[id]` into an AI product planning meeting room instead of a long report.

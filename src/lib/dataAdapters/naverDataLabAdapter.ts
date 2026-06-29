@@ -29,7 +29,7 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
   if (!clientId || !clientSecret) {
     return {
       source: "Naver DataLab",
-      status: "PARTIAL DATA",
+      status: "API NOT CONNECTED",
       keyword: normalizedKeyword,
       message: "NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 없어 네이버 데이터랩을 호출하지 않았습니다.",
       data: null,
@@ -51,7 +51,7 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
         timeUnit: "week",
         keywordGroups: [{ groupName: normalizedKeyword, keywords: [normalizedKeyword] }],
       }),
-      next: { revalidate: 86400 },
+      next: { revalidate: 3600 },
     });
 
     if (!response.ok) {
@@ -66,19 +66,23 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
       source: "Naver DataLab",
       status: points.length ? "LIVE DATA" : "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: points.length ? "네이버 데이터랩 검색어 트렌드 데이터를 연결했습니다." : "네이버 데이터랩 응답은 성공했지만 트렌드 데이터가 비어 있습니다.",
-      data: {
-        keyword: normalizedKeyword,
-        trendPoints: points,
-        growthRate: calculateGrowthRate(points),
-        seasonality: inferSeasonality(points),
-      },
+      message: points.length
+        ? "네이버 데이터랩 검색 추세를 실제 점수 계산에 반영했습니다."
+        : "네이버 데이터랩 응답은 성공했지만 추세 데이터가 비어 있습니다.",
+      data: points.length
+        ? {
+            keyword: normalizedKeyword,
+            trendPoints: points,
+            growthRate: calculateGrowthRate(points),
+            seasonality: inferSeasonality(points),
+          }
+        : null,
       fetchedAt: new Date().toISOString(),
     };
   } catch (error) {
     return {
       source: "Naver DataLab",
-      status: "PARTIAL DATA",
+      status: "SOURCE LIMITED",
       keyword: normalizedKeyword,
       message: `네이버 데이터랩 호출에 실패했습니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: null,
@@ -89,16 +93,19 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
 
 function calculateGrowthRate(points: Array<{ ratio: number }>) {
   if (points.length < 2) return 0;
-  const first = points[0]?.ratio || 1;
-  const last = points[points.length - 1]?.ratio ?? first;
-  return Math.round(((last - first) / first) * 100);
+  const firstWindow = average(points.slice(0, Math.min(4, points.length)).map((point) => point.ratio));
+  const recentWindow = average(points.slice(-4).map((point) => point.ratio));
+  const denominator = firstWindow || 1;
+  return Math.round(((recentWindow - firstWindow) / denominator) * 100);
 }
 
 function inferSeasonality(points: Array<{ ratio: number }>) {
   if (points.length < 4) return "데이터 부족";
   const recent = average(points.slice(-4).map((point) => point.ratio));
-  const previous = average(points.slice(0, Math.min(4, points.length)).map((point) => point.ratio));
-  return recent >= previous ? "상승 추세" : "하락 또는 안정";
+  const previous = average(points.slice(-8, -4).map((point) => point.ratio));
+  if (recent >= previous * 1.15) return "상승 계절성";
+  if (recent <= previous * 0.85) return "하락 계절성";
+  return "안정 추세";
 }
 
 function average(values: number[]) {

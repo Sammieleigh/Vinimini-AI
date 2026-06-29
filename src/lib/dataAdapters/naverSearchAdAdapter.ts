@@ -24,7 +24,7 @@ export async function fetchNaverSearchAdKeywords(keyword: string): Promise<Adapt
       source: "Naver SearchAd Keyword Tool",
       status: "API NOT CONNECTED",
       keyword: normalizedKeyword,
-      message: "네이버 검색광고 키가 없어 API NOT CONNECTED 상태로 표시합니다.",
+      message: "네이버 검색광고 API 키가 없어 월 검색량과 경쟁도를 연결하지 않았습니다.",
       data: null,
       fetchedAt: null,
     };
@@ -42,7 +42,7 @@ export async function fetchNaverSearchAdKeywords(keyword: string): Promise<Adapt
         "X-Customer": customerId,
         "X-Signature": signature,
       },
-      next: { revalidate: 86400 },
+      next: { revalidate: 3600 },
     });
 
     if (!response.ok) {
@@ -51,32 +51,49 @@ export async function fetchNaverSearchAdKeywords(keyword: string): Promise<Adapt
 
     const payload = (await response.json()) as NaverSearchAdResponse;
     const keywords = payload.keywordList ?? [];
-    const main = keywords[0];
+    const main = findMainKeyword(keywords, normalizedKeyword) ?? keywords[0];
+
+    if (!main) {
+      return {
+        source: "Naver SearchAd Keyword Tool",
+        status: "PARTIAL DATA",
+        keyword: normalizedKeyword,
+        message: "네이버 검색광고 응답은 성공했지만 키워드 데이터가 비어 있습니다.",
+        data: null,
+        fetchedAt: new Date().toISOString(),
+      };
+    }
+
+    const pcMonthlySearchVolume = parseCount(main.monthlyPcQcCnt);
+    const mobileMonthlySearchVolume = parseCount(main.monthlyMobileQcCnt);
+    const totalMonthlySearchVolume = pcMonthlySearchVolume + mobileMonthlySearchVolume;
 
     return {
       source: "Naver SearchAd Keyword Tool",
-      status: main ? "LIVE DATA" : "PARTIAL DATA",
+      status: "LIVE DATA",
       keyword: normalizedKeyword,
-      message: main ? "네이버 검색광고 키워드 데이터를 연결했습니다." : "네이버 검색광고 응답은 성공했지만 키워드 데이터가 비어 있습니다.",
-      data: main
-        ? {
-            keyword: main.relKeyword || normalizedKeyword,
-            monthlySearchVolume: parseCount(main.monthlyPcQcCnt) + parseCount(main.monthlyMobileQcCnt),
-            competition: main.compIdx || "미제공",
-            relatedKeywords: keywords
-              .map((item) => item.relKeyword)
-              .filter((item): item is string => Boolean(item))
-              .slice(0, 10),
-          }
-        : null,
+      message: "네이버 검색광고 월 검색량, PC/모바일 검색량, 경쟁도, 연관 키워드를 연결했습니다.",
+      data: {
+        keyword: main.relKeyword || normalizedKeyword,
+        totalMonthlySearchVolume,
+        pcMonthlySearchVolume,
+        mobileMonthlySearchVolume,
+        mobileSearchRatio: totalMonthlySearchVolume ? Math.round((mobileMonthlySearchVolume / totalMonthlySearchVolume) * 100) : null,
+        pcSearchRatio: totalMonthlySearchVolume ? Math.round((pcMonthlySearchVolume / totalMonthlySearchVolume) * 100) : null,
+        competitionLevel: normalizeCompetition(main.compIdx),
+        relatedKeywords: keywords
+          .map((item) => item.relKeyword)
+          .filter((item): item is string => Boolean(item))
+          .slice(0, 10),
+      },
       fetchedAt: new Date().toISOString(),
     };
   } catch (error) {
     return {
       source: "Naver SearchAd Keyword Tool",
-      status: "PARTIAL DATA",
+      status: "SOURCE LIMITED",
       keyword: normalizedKeyword,
-      message: `네이버 검색광고 호출에 실패해 SOURCE LIMITED 상태로 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      message: `네이버 검색광고 호출에 실패했습니다. SOURCE LIMITED로 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: null,
       fetchedAt: new Date().toISOString(),
     };
@@ -85,6 +102,23 @@ export async function fetchNaverSearchAdKeywords(keyword: string): Promise<Adapt
 
 function createSignature(timestamp: string, method: string, path: string, secretKey: string) {
   return createHmac("sha256", secretKey).update(`${timestamp}.${method}.${path}`).digest("base64");
+}
+
+function findMainKeyword(
+  keywords: Array<{ relKeyword?: string; monthlyPcQcCnt?: string | number; monthlyMobileQcCnt?: string | number; compIdx?: string }>,
+  keyword: string,
+) {
+  const normalized = keyword.replace(/\s/g, "").toLowerCase();
+  return keywords.find((item) => item.relKeyword?.replace(/\s/g, "").toLowerCase() === normalized);
+}
+
+function normalizeCompetition(value: string | undefined) {
+  if (!value) return "데이터 부족";
+  if (value === "높음" || value === "중간" || value === "낮음") return value;
+  if (value.toUpperCase() === "HIGH") return "높음";
+  if (value.toUpperCase() === "MID") return "중간";
+  if (value.toUpperCase() === "LOW") return "낮음";
+  return value;
 }
 
 function parseCount(value: string | number | undefined) {

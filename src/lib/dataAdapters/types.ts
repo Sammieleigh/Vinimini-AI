@@ -27,8 +27,12 @@ export type DataLabTrend = {
 
 export type SearchAdKeyword = {
   keyword: string;
-  monthlySearchVolume: number;
-  competition: string;
+  totalMonthlySearchVolume: number;
+  pcMonthlySearchVolume: number;
+  mobileMonthlySearchVolume: number;
+  mobileSearchRatio: number | null;
+  pcSearchRatio: number | null;
+  competitionLevel: string;
   relatedKeywords: string[];
 };
 
