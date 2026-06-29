@@ -1,26 +1,18 @@
 import type { CoupangOpportunity } from "@/lib/types";
-import { SectionCard } from "@/components/ui/SectionCard";
+import { Metric, SectionHeading } from "./PlanningPrimitives";
 
 export function ExpectedResult({ product }: { product: CoupangOpportunity }) {
-  const rows = [
-    ["예상 CTR", product.expectedResult.ctr],
-    ["구매전환율", product.expectedResult.conversion],
-    ["예상 마진", product.expectedResult.margin],
-    ["예상 일판매량", product.expectedResult.dailySales],
-    ["예상 반품률", product.expectedResult.returnRate],
-    ["예상 점수 상승", product.expectedResult.scoreChange],
-  ];
-
   return (
-    <SectionCard eyebrow="Expected Result" title="예상 성과">
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        {rows.map(([label, value]) => (
-          <div key={label} className="rounded-sm border border-[#E5DED5] bg-[#FBFAF7] p-4">
-            <p className="text-xs text-[#6F6A63]">{label}</p>
-            <p className="mt-2 text-xl font-semibold">{value}</p>
-          </div>
-        ))}
+    <div>
+      <SectionHeading eyebrow="데이터 디렉터 AI" title="예상 결과" text="예상 결과는 기획 추정치이며, 쿠팡 실시간 성과 데이터가 아닙니다." />
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <Metric label="클릭률" value={product.expectedResult.ctr} />
+        <Metric label="구매전환율" value={product.expectedResult.conversion} />
+        <Metric label="마진" value={product.expectedResult.margin} />
+        <Metric label="일 판매량" value={product.expectedResult.dailySales} />
+        <Metric label="반품률" value={product.expectedResult.returnRate} />
+        <Metric label="점수 변화" value={product.expectedResult.scoreChange} />
       </div>
-    </SectionCard>
+    </div>
   );
 }

@@ -1,25 +1,22 @@
-import type { CoupangOpportunity, RiskLevel } from "@/lib/types";
-import { SectionCard } from "@/components/ui/SectionCard";
-
-const riskLabels: Record<RiskLevel, string> = {
-  Low: "낮음",
-  Medium: "보통",
-  High: "높음",
-};
+import type { CoupangOpportunity } from "@/lib/types";
+import { Metric, SectionHeading } from "./PlanningPrimitives";
 
 export function RiskAnalysis({ product }: { product: CoupangOpportunity }) {
   return (
-    <SectionCard eyebrow="Risk Analysis" title="위험 분석">
-      <p className="mt-5 text-3xl font-semibold">{riskLabels[product.risk.level]}</p>
-      <ul className="mt-4 space-y-2 text-sm leading-6 text-[#6F6A63]">
-        {product.risk.reasons.map((reason) => (
-          <li key={reason}>{reason}</li>
-        ))}
-      </ul>
-      <div className="mt-6 rounded-sm border border-[#E5DED5] p-4">
-        <p className="text-sm font-medium">AI 신뢰도 {product.confidence.percent}%</p>
-        <p className="mt-2 text-sm leading-6 text-[#6F6A63]">{product.confidence.evidence.join(" · ")}</p>
+    <div>
+      <SectionHeading eyebrow="리스크 디렉터 AI" title="리스크" text="대표님이 명확하게 결정할 수 있도록 실행 전에 리스크를 먼저 보여드립니다." />
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <Metric label="리스크 수준" value={product.risk.level === "Low" ? "낮음" : product.risk.level === "High" ? "높음" : "보통"} />
+        <Metric label="리뷰 리스크" value="출처 제한" />
+        <Metric label="경쟁 강도" value={product.lowCompetition} />
       </div>
-    </SectionCard>
+      <div className="mt-5 grid gap-3">
+        {product.risk.reasons.map((reason) => (
+          <article key={reason} className="border border-[#D9D0C4] bg-[#FBFAF7] p-4 text-sm leading-6 text-[#625B53]">
+            {reason}
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }

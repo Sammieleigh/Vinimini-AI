@@ -22,7 +22,7 @@ export type ViniminiConcept = {
   thumbnailDirection: string;
   expectedCtr: string;
   reason: string;
-  purpose: "클릭률" | "구매전환" | "브랜드 강화";
+  purpose: "Click Rate" | "Conversion" | "Brand Trust" | "클릭률" | "구매전환" | "브랜드 강화";
 };
 
 export type CoupangOpportunity = {

@@ -99,6 +99,35 @@ Implementation:
 - The UI displays cache state, Today's OpenAI Calls, Cache Hit Rate, Estimated Cost Saved, and the Midnight Strategy Room meeting timeline.
 - Opportunity Center TOP10 cards now show CEO decision fields: Opportunity Score, Entry Difficulty, Estimated Margin, Search Growth, Competition, Why Now, Recommended Action, Source Badges, and Confidence.
 
+### Planning Room v1
+
+Planning Room v1 turns `/planning/[id]` into an AI product planning meeting room instead of a long report.
+
+Tab order:
+
+1. Executive Summary
+2. AI Discussion
+3. Competitor Analysis
+4. Review Complaint TOP5
+5. Thumbnail Proposal
+6. Detail Page Proposal
+7. Pricing
+8. Risk
+9. Expected Result
+10. CEO Recommendation
+11. AI Learning Note
+12. Meeting History
+
+Implementation:
+
+- Each tab is an independent component under `src/components/planning`.
+- The Planning Room header reinforces CEO Headquarters, CEO Secretary AI, and source status.
+- OpenAI is treated as the Executive Analysis Engine, not a product data source.
+- OpenAI may summarize, score, prioritize, debate, and prepare CEO recommendations from connected evidence.
+- OpenAI must not invent Coupang product facts, reviews, prices, rankings, or sales volume.
+- If evidence is insufficient, the UI shows `SOURCE LIMITED` or asks for additional verified data.
+- Executive analysis must use batch analysis, 24-hour cache reuse, and `forceRefresh=true` only for intentional re-analysis.
+
 ### UX Principles
 
 Never build dashboards. Build Headquarters. Never build widgets. Build Departments. Never build reports. Build Executive Briefings. Never build software. Build an AI Company.

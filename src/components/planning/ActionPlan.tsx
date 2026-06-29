@@ -1,27 +1,19 @@
 import type { CoupangOpportunity } from "@/lib/types";
-import { SectionCard } from "@/components/ui/SectionCard";
+import { SectionHeading } from "./PlanningPrimitives";
 
 export function ActionPlan({ product }: { product: CoupangOpportunity }) {
   return (
-    <SectionCard eyebrow="Action Plan" title="실행 계획">
-      <div className="mt-5 space-y-3">
+    <div>
+      <SectionHeading eyebrow="실행 계획" title="AI 우선 실행안" text="이 컴포넌트는 다음 흐름을 위해 유지합니다. 최종 결정은 CEO 실행 제안 탭에서 다룹니다." />
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
         {product.actionPlan.map((step, index) => (
-          <label key={step} className="flex items-center gap-3 text-sm text-[#6F6A63]">
-            <input type="checkbox" className="h-4 w-4 accent-[#111111]" />
-            <span>
-              Step {index + 1}. {step}
-            </span>
-          </label>
+          <article key={step} className="border border-[#D9D0C4] bg-[#FBFAF7] p-4">
+            <p className="text-sm font-semibold">
+              {index + 1}. {step}
+            </p>
+          </article>
         ))}
       </div>
-      <div className="mt-6 space-y-3 text-sm leading-6 text-[#6F6A63]">
-        <p>썸네일 개선: {product.planningActions.thumbnail}</p>
-        <p>상세페이지 개선: {product.planningActions.detailPage}</p>
-        <p>카피 문구 개선: {product.planningActions.copy}</p>
-        <p>실측표 위치: {product.planningActions.sizeChart}</p>
-        <p>신규 이미지 생성: {product.planningActions.newImage}</p>
-        <p>반품률 감소 전략: {product.planningActions.returnReduction}</p>
-      </div>
-    </SectionCard>
+    </div>
   );
 }
