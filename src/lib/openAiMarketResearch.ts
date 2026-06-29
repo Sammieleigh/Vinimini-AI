@@ -11,6 +11,7 @@ const DEFAULT_DAILY_LIMIT = 10;
 const DEFAULT_TTL_HOURS = 24;
 const MORE_DATA_REQUIRED_KO = "추가 데이터 필요";
 const SOURCE_LIMITED_KO = "근거 부족";
+const WIDE_SLACKS_EMPTY_MESSAGE = "동일 카테고리 경쟁상품 데이터를 불러오지 못했습니다. 키워드를 조정해 다시 리서치하세요.";
 
 export type MarketResearchCompetitor = {
   productName: string;
@@ -114,13 +115,15 @@ export async function runOpenAiMarketResearch({
   const normalizedUrl = url.trim();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const categoryProfile = createCategoryProfile(normalizedKeyword);
-  const coupangPartners = await fetchCoupangPartnersProducts(normalizedKeyword);
-  const verifiedCoupangCompetitors = mapPartnerProductsToCompetitors(coupangPartners.data, categoryProfile);
+  const officialCoupangSearch = await fetchOfficialCoupangCompetitors(categoryProfile);
+  const verifiedCoupangCompetitors = officialCoupangSearch.competitors;
+  const rankedOfficialCoupangCompetitors = rankCompetitors(verifiedCoupangCompetitors, categoryProfile);
   const sourceHash = hash(
     JSON.stringify({
       primarySource: "coupang-public-web",
-      officialCoupangApiStatus: coupangPartners.status,
-      officialCoupangProducts: verifiedCoupangCompetitors.map((item) => ({
+      officialCoupangApiStatus: officialCoupangSearch.status,
+      officialCoupangSearchKeywords: officialCoupangSearch.triedKeywords,
+      officialCoupangProducts: rankedOfficialCoupangCompetitors.competitors.map((item) => ({
         productName: item.productName,
         price: item.price,
         productUrl: item.productUrl,
@@ -151,7 +154,7 @@ export async function runOpenAiMarketResearch({
       cacheKey,
       categoryProfile,
       cacheStatus: "OPENAI API NOT CONNECTED",
-      competitors: verifiedCoupangCompetitors,
+      competitors: rankedOfficialCoupangCompetitors.competitors,
       message: "OPENAI_API_KEY가 없어 쿠팡 중심 공개 웹 리서치를 실행하지 않았습니다.",
     });
   }
@@ -166,7 +169,7 @@ export async function runOpenAiMarketResearch({
       cacheKey,
       categoryProfile,
       cacheStatus: "Analysis Limited",
-      competitors: verifiedCoupangCompetitors,
+      competitors: rankedOfficialCoupangCompetitors.competitors,
       message: `OpenAI daily limit reached. 오늘 허용된 ${dailyLimit}회 호출을 모두 사용했습니다.`,
     });
   }
@@ -211,10 +214,11 @@ export async function runOpenAiMarketResearch({
                 "4. Other public market sources only when they improve confidence",
               ],
               strictRules: [
-                `Use these same-category keywords as the highest relevance targets: ${categoryProfile.allowedKeywordExpansion.join(", ")}`,
+                `Search these same-category keywords in order and do not broaden beyond them: ${categoryProfile.allowedKeywordExpansion.join(" -> ")}`,
                 `Score each discovered product for category relevance against: ${categoryProfile.categoryLock}`,
-                `Products containing these terms are low relevance but must still be returned for server-side exclusion review: ${categoryProfile.excludedTerms.join(", ") || "none"}`,
-                "Do not discard publicly verified Coupang products. Return them with relevanceScore and relevanceReason so the server can place low relevance items in excluded candidates.",
+                `Products containing these terms are hard-excluded and must not be used as competitors or excluded candidates: ${categoryProfile.excludedTerms.join(", ") || "none"}`,
+                "For wide-slacks research, only pants/slacks/trouser-family products are allowed. Never return shoes, dresses, tops, sleeveless tops, leggings, underwear, bags, or hats.",
+                "Do not discard publicly verified same-category Coupang products. Return them with relevanceScore and relevanceReason so the server can place low relevance but same-family items in excluded candidates.",
                 "Verified product fields must come from public evidence. AI interpretation must stay in aiAnalysis.",
                 "Every analysis sentence shown to the CEO must be Korean only.",
               ],
@@ -244,11 +248,12 @@ export async function runOpenAiMarketResearch({
 
     const payload = (await response.json()) as { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> };
     const parsed = parseMarketResearch(extractOutputText(payload), categoryProfile);
-    const ranked = rankCompetitors(mergeCompetitors(verifiedCoupangCompetitors, parsed.competitors));
+    const ranked = rankCompetitors(mergeCompetitors(verifiedCoupangCompetitors, parsed.competitors), categoryProfile);
     const competitors = ranked.competitors;
     const hasVerified = competitors.some((item) => item.evidenceStatus === "VERIFIED INFORMATION");
     const hasPartial = competitors.some((item) => item.evidenceStatus === "PARTIAL DATA");
     const hasAnyProductData = competitors.length + ranked.excludedCompetitors.length > 0;
+    const aiAnalysis = competitors.length ? parsed.aiAnalysis : createEmptyResearch(categoryProfile).aiAnalysis;
     const result: MarketResearchResult = {
       ok: true,
       keyword: normalizedKeyword,
@@ -262,11 +267,11 @@ export async function runOpenAiMarketResearch({
       sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData }),
       competitors,
       excludedCompetitors: ranked.excludedCompetitors,
-      aiAnalysis: parsed.aiAnalysis,
+      aiAnalysis,
       finance: createFinanceStats(),
       message: hasVerified
         ? "쿠팡 공식 상품 검색과 OpenAI Market Research Engine이 쿠팡 공개 상품 리스트를 관련도 기준으로 정리했습니다."
-        : "동일 카테고리의 검증 가능한 쿠팡 경쟁상품 근거가 부족합니다. 추가 데이터 필요로 표시합니다.",
+        : WIDE_SLACKS_EMPTY_MESSAGE,
       lastAnalyzedAt: new Date().toISOString(),
     };
 
@@ -281,8 +286,8 @@ export async function runOpenAiMarketResearch({
       cacheKey,
       categoryProfile,
       cacheStatus: "Analysis Limited",
-      competitors: verifiedCoupangCompetitors,
-      message: `OpenAI 쿠팡 중심 공개 웹 리서치에 실패했습니다. 근거 부족으로 표시합니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      competitors: rankedOfficialCoupangCompetitors.competitors,
+      message: `OpenAI 쿠팡 중심 공개 웹 리서치에 실패했습니다. ${WIDE_SLACKS_EMPTY_MESSAGE} ${error instanceof Error ? error.message : ""}`.trim(),
     });
   }
 }
@@ -366,6 +371,28 @@ function mapPartnerProductsToCompetitors(products: PartnerProduct[], categoryPro
     }));
 }
 
+async function fetchOfficialCoupangCompetitors(categoryProfile: CategoryProfile) {
+  const triedKeywords: string[] = [];
+  const competitors: MarketResearchCompetitor[] = [];
+  let status = "API NOT CONNECTED";
+
+  for (const keyword of categoryProfile.allowedKeywordExpansion) {
+    triedKeywords.push(keyword);
+    const result = await fetchCoupangPartnersProducts(keyword);
+    status = result.status;
+    const mapped = mapPartnerProductsToCompetitors(result.data, categoryProfile);
+    const ranked = rankCompetitors(mapped, categoryProfile);
+    competitors.push(...ranked.competitors);
+    if (competitors.length >= 5) break;
+  }
+
+  return {
+    status,
+    triedKeywords,
+    competitors: mergeCompetitors([], competitors),
+  };
+}
+
 function mergeCompetitors(primary: MarketResearchCompetitor[], secondary: MarketResearchCompetitor[]) {
   const seen = new Set<string>();
   const merged: MarketResearchCompetitor[] = [];
@@ -380,8 +407,9 @@ function mergeCompetitors(primary: MarketResearchCompetitor[], secondary: Market
   return merged.slice(0, 30);
 }
 
-function rankCompetitors(items: MarketResearchCompetitor[]) {
-  const sorted = [...items].sort((a, b) => b.relevanceScore - a.relevanceScore);
+function rankCompetitors(items: MarketResearchCompetitor[], categoryProfile: CategoryProfile) {
+  const visibleSameCategoryItems = items.filter((item) => isSameCategoryCompetitor(item.productName, categoryProfile));
+  const sorted = [...visibleSameCategoryItems].sort((a, b) => b.relevanceScore - a.relevanceScore);
   const competitors = sorted.filter((item) => item.relevanceScore >= 45).slice(0, 10);
   const excludedCompetitors = sorted.filter((item) => item.relevanceScore < 45).slice(0, 10);
   return { competitors, excludedCompetitors };
@@ -499,11 +527,11 @@ function createCategoryProfile(keyword: string): CategoryProfile {
   if (normalized.includes("슬랙스")) {
     return {
       baseCategory: "와이드 슬랙스",
-      categoryLock: "슬랙스 상품만 허용",
-      allowedKeywordExpansion: ["여름 와이드 슬랙스", "여성 와이드 슬랙스", "냉감 와이드 슬랙스", "밴딩 와이드 슬랙스", "린넨 와이드 슬랙스", "쿨링 슬랙스"],
-      requiredAnyTerms: ["슬랙스"],
+      categoryLock: "슬랙스/팬츠/바지 상품만 허용",
+      allowedKeywordExpansion: ["와이드 슬랙스", "여성 와이드 슬랙스", "여름 와이드 슬랙스", "린넨 와이드 팬츠", "밴딩 와이드 팬츠", "여성 와이드 팬츠", "쿨 와이드 팬츠"],
+      requiredAnyTerms: ["슬랙스", "팬츠", "바지", "와이드팬츠", "와이드 슬랙스", "여성 슬랙스", "여름 슬랙스", "밴딩 슬랙스", "린넨 슬랙스"],
       requiredAllTerms: [],
-      excludedTerms: ["원피스", "치마바지", "레깅스", "후드", "맨투맨", "블라우스", "니트"],
+      excludedTerms: ["운동화", "신발", "원피스", "상의", "티셔츠", "나시", "망고나시", "민소매", "브라", "속옷", "가방", "모자", "치마레깅스", "치마바지", "레깅스", "후드", "맨투맨", "블라우스", "니트"],
     };
   }
 

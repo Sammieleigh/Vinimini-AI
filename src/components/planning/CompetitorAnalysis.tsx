@@ -106,7 +106,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
     };
   }, [product.id, product.productName, product.productUrl]);
 
-  const competitors = research?.competitors.length ? research.competitors : createFallbackCompetitors(product);
+  const competitors = research?.competitors ?? [];
 
   return (
     <div className="grid gap-5">
@@ -148,32 +148,40 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
             </tr>
           </thead>
           <tbody>
-            {competitors.map((competitor, index) => (
-              <tr key={`${competitor.productName}-table-${index}`} className="border-b border-[#E5DED5] last:border-b-0">
-                <td className="px-4 py-4">
-                  <div className="flex h-16 w-16 items-center justify-center border border-[#E5DED5] bg-[#FBFAF7] text-center text-[11px] text-[#8A8277]">
-                    {competitor.thumbnailUrl ? <Image src={competitor.thumbnailUrl} alt="" width={64} height={64} unoptimized className="h-full w-full object-cover" /> : "근거 부족"}
-                  </div>
+            {competitors.length ? (
+              competitors.map((competitor, index) => (
+                <tr key={`${competitor.productName}-table-${index}`} className="border-b border-[#E5DED5] last:border-b-0">
+                  <td className="px-4 py-4">
+                    <div className="flex h-16 w-16 items-center justify-center border border-[#E5DED5] bg-[#FBFAF7] text-center text-[11px] text-[#8A8277]">
+                      {competitor.thumbnailUrl ? <Image src={competitor.thumbnailUrl} alt="" width={64} height={64} unoptimized className="h-full w-full object-cover" /> : "근거 부족"}
+                    </div>
+                  </td>
+                  <td className="max-w-[280px] px-4 py-4 font-semibold">{competitor.productName}</td>
+                  <td className="px-4 py-4">{formatSourceValue(competitor.price)}</td>
+                  <td className="px-4 py-4">{formatSourceValue(competitor.reviewCount)}</td>
+                  <td className="px-4 py-4">{formatSourceValue(competitor.rating)}</td>
+                  <td className="px-4 py-4">{formatSourceValue(competitor.rocketDelivery)}</td>
+                  <td className="px-4 py-4">{formatSourceValue(competitor.seller)}</td>
+                  <td className="px-4 py-4">
+                    {competitor.productUrl ? (
+                      <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-4">
+                        쿠팡 상품 열기
+                      </a>
+                    ) : (
+                    "SOURCE LIMITED"
+                    )}
+                  </td>
+                  <td className="px-4 py-4">{competitor.relevanceScore}점</td>
+                  <td className="px-4 py-4">{formatBadge(competitor.evidenceStatus)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={10} className="px-4 py-8 text-center text-sm font-semibold text-[#625B53]">
+                  {isLoading ? "동일 카테고리 쿠팡 경쟁상품을 확인하고 있습니다." : "동일 카테고리 경쟁상품 데이터를 불러오지 못했습니다. 키워드를 조정해 다시 리서치하세요."}
                 </td>
-                <td className="max-w-[280px] px-4 py-4 font-semibold">{competitor.productName}</td>
-                <td className="px-4 py-4">{formatDisplayText(competitor.price, "근거 부족")}</td>
-                <td className="px-4 py-4">{formatDisplayText(competitor.reviewCount, "근거 부족")}</td>
-                <td className="px-4 py-4">{formatDisplayText(competitor.rating, "근거 부족")}</td>
-                <td className="px-4 py-4">{formatDisplayText(competitor.rocketDelivery, "근거 부족")}</td>
-                <td className="px-4 py-4">{formatDisplayText(competitor.seller, "근거 부족")}</td>
-                <td className="px-4 py-4">
-                  {competitor.productUrl ? (
-                    <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-4">
-                      쿠팡 상품 열기
-                    </a>
-                  ) : (
-                    "근거 부족"
-                  )}
-                </td>
-                <td className="px-4 py-4">{competitor.relevanceScore}점</td>
-                <td className="px-4 py-4">{formatBadge(competitor.evidenceStatus)}</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </section>
@@ -207,11 +215,11 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                 )}
               </h3>
               <div className="mt-3 grid gap-2 md:grid-cols-5">
-                <SmallFact label="가격" value={formatDisplayText(competitor.price, "근거 부족")} />
-                <SmallFact label="리뷰 수" value={formatDisplayText(competitor.reviewCount, "근거 부족")} />
-                <SmallFact label="평점" value={formatDisplayText(competitor.rating, "근거 부족")} />
-                <SmallFact label="판매자" value={formatDisplayText(competitor.seller, "근거 부족")} />
-                <SmallFact label="배송" value={formatDisplayText(competitor.shippingInfo, "근거 부족")} />
+                <SmallFact label="가격" value={formatSourceValue(competitor.price)} />
+                <SmallFact label="리뷰 수" value={formatSourceValue(competitor.reviewCount)} />
+                <SmallFact label="평점" value={formatSourceValue(competitor.rating)} />
+                <SmallFact label="판매자" value={formatSourceValue(competitor.seller)} />
+                <SmallFact label="배송" value={formatSourceValue(competitor.shippingInfo)} />
               </div>
               <p className="mt-3 text-xs leading-5 text-[#8A8277]">관련도 {competitor.relevanceScore}점 · {formatDisplayText(competitor.relevanceReason, "카테고리 관련도 추가 확인 필요")}</p>
               <div className="mt-3 grid gap-3 lg:grid-cols-4">
@@ -303,33 +311,6 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
       <SourceLimitedNotice />
     </div>
   );
-}
-
-function createFallbackCompetitors(product: CoupangOpportunity): MarketResearchCompetitor[] {
-  return [
-    {
-      productName: `${product.productName} 경쟁상품`,
-      price: "근거 부족",
-      reviewCount: "근거 부족",
-      rating: "근거 부족",
-      seller: "근거 부족",
-      shippingInfo: "근거 부족",
-      rocketDelivery: "근거 부족",
-      productUrl: "",
-      thumbnailUrl: "",
-      sellingPoints: ["동일 카테고리 쿠팡 공개 근거가 필요합니다."],
-      thumbnailFeatures: ["추가 데이터 필요"],
-      firstScreenFeatures: ["추가 데이터 필요"],
-      detailPageFeatures: ["추가 데이터 필요"],
-      repeatedReviewPros: ["근거 부족"],
-      repeatedReviewCons: ["근거 부족"],
-      differentiationHints: ["추가 데이터 필요"],
-      whyItSells: "추가 데이터 필요",
-      evidenceStatus: "SOURCE LIMITED",
-      relevanceScore: 0,
-      relevanceReason: "검증 가능한 쿠팡 상품 근거가 아직 없습니다.",
-    },
-  ];
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -433,4 +414,11 @@ function formatDisplayText(value: string | undefined, fallback: string) {
   if (value === "SOURCE LIMITED") return "근거 부족";
   if (value === "MORE DATA REQUIRED") return "추가 데이터 필요";
   return value.replaceAll("SOURCE LIMITED", "근거 부족").replaceAll("MORE DATA REQUIRED", "추가 데이터 필요");
+}
+
+function formatSourceValue(value: string | undefined) {
+  if (!value) return "SOURCE LIMITED";
+  const text = value.trim();
+  if (!text || text === "-" || text === "근거 부족" || text === "추가 데이터 필요" || text === "MORE DATA REQUIRED") return "SOURCE LIMITED";
+  return text;
 }
