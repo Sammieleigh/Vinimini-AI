@@ -120,7 +120,8 @@ Sprint 8 starts replacing mock scoring assumptions with connected market signals
 
 Implementation:
 
-- Naver DataLab now contributes real 90-day trend ratios, recent growth rate, and seasonality to Opportunity Score.
+- Naver DataLab Shopping Insight is the first-priority demand source. It contributes shopping demand, recent growth rate, seasonality, PC trend ratio, and mobile trend ratio to Opportunity Score.
+- Naver Shopping Search API now connects verified public product signals: product name, price, mall name, brand, link, and category.
 - Naver SearchAd Keyword Tool stores total monthly search volume, PC monthly search volume, mobile monthly search volume, mobile search ratio, PC search ratio, competition level, and related keywords separately.
 - Mobile search ratio affects thumbnail importance and first-screen importance because Coupang women's fashion is mobile-first.
 - PC search ratio affects detail-page priorities such as price comparison, material explanation, and size chart clarity.
@@ -128,6 +129,7 @@ Implementation:
 - High PC and mobile demand together is treated as a large keyword with advertising competition risk.
 - Coupang Partners API remains the official product-data adapter for product name, image, price, product URL, category, and brand. If credentials are missing or the API fails, VINIMINI displays API NOT CONNECTED or SOURCE LIMITED instead of inventing product data.
 - Opportunity cards now surface total search volume, mobile search ratio, PC search ratio, search growth, competition level, and mobile commerce fit.
+- Opportunity cards separate VERIFIED INFORMATION from AI ANALYSIS so confirmed Naver data and OpenAI reasoning are not mixed.
 - OpenAI remains the Executive Analysis Engine. It analyzes connected source data in batch and must not invent Coupang products, reviews, prices, rankings, or sales volume.
 
 ### Planning Room v1

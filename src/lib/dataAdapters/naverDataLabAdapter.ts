@@ -1,11 +1,12 @@
 import type { AdapterResult, DataLabTrend } from "./types";
 
-const NAVER_DATALAB_URL = "https://openapi.naver.com/v1/datalab/search";
+const NAVER_SHOPPING_INSIGHT_URL = "https://openapi.naver.com/v1/datalab/shopping/categories/keywords";
+const DEFAULT_WOMEN_FASHION_CATEGORY_ID = "50000000";
 
-type NaverDataLabResponse = {
+type NaverShoppingInsightResponse = {
   results?: Array<{
     title?: string;
-    keywords?: string[];
+    keyword?: string[];
     data?: Array<{ period: string; ratio: number }>;
   }>;
 };
@@ -13,14 +14,15 @@ type NaverDataLabResponse = {
 export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterResult<DataLabTrend | null>> {
   const clientId = process.env.NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
+  const categoryId = process.env.NAVER_SHOPPING_CATEGORY_ID || DEFAULT_WOMEN_FASHION_CATEGORY_ID;
   const normalizedKeyword = keyword.trim();
 
   if (!normalizedKeyword) {
     return {
-      source: "Naver DataLab",
+      source: "Naver DataLab Shopping Insight",
       status: "PARTIAL DATA",
       keyword: "",
-      message: "검색어가 비어 있어 네이버 데이터랩을 호출하지 않았습니다.",
+      message: "검색어가 비어 있어 네이버 쇼핑인사이트를 호출하지 않았습니다.",
       data: null,
       fetchedAt: null,
     };
@@ -28,67 +30,96 @@ export async function fetchNaverDataLabTrend(keyword: string): Promise<AdapterRe
 
   if (!clientId || !clientSecret) {
     return {
-      source: "Naver DataLab",
+      source: "Naver DataLab Shopping Insight",
       status: "API NOT CONNECTED",
       keyword: normalizedKeyword,
-      message: "NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 없어 네이버 데이터랩을 호출하지 않았습니다.",
+      message: "NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET이 없어 네이버 쇼핑인사이트를 호출하지 않았습니다.",
       data: null,
       fetchedAt: null,
     };
   }
 
   try {
-    const response = await fetch(NAVER_DATALAB_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Naver-Client-Id": clientId,
-        "X-Naver-Client-Secret": clientSecret,
-      },
-      body: JSON.stringify({
-        startDate: getDateBeforeDays(90),
-        endDate: getDateBeforeDays(1),
-        timeUnit: "week",
-        keywordGroups: [{ groupName: normalizedKeyword, keywords: [normalizedKeyword] }],
-      }),
-      next: { revalidate: 3600 },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Naver DataLab failed: ${response.status} ${errorText}`);
-    }
-
-    const payload = (await response.json()) as NaverDataLabResponse;
-    const points = payload.results?.[0]?.data ?? [];
+    const [total, pc, mobile] = await Promise.all([
+      fetchShoppingInsight({ keyword: normalizedKeyword, categoryId, clientId, clientSecret }),
+      fetchShoppingInsight({ keyword: normalizedKeyword, categoryId, clientId, clientSecret, device: "pc" }),
+      fetchShoppingInsight({ keyword: normalizedKeyword, categoryId, clientId, clientSecret, device: "mo" }),
+    ]);
+    const trendPoints = total.results?.[0]?.data ?? [];
+    const pcTrendPoints = pc.results?.[0]?.data ?? [];
+    const mobileTrendPoints = mobile.results?.[0]?.data ?? [];
 
     return {
-      source: "Naver DataLab",
-      status: points.length ? "LIVE DATA" : "PARTIAL DATA",
+      source: "Naver DataLab Shopping Insight",
+      status: trendPoints.length ? "LIVE DATA" : "PARTIAL DATA",
       keyword: normalizedKeyword,
-      message: points.length
-        ? "네이버 데이터랩 검색 추세를 실제 점수 계산에 반영했습니다."
-        : "네이버 데이터랩 응답은 성공했지만 추세 데이터가 비어 있습니다.",
-      data: points.length
+      message: trendPoints.length
+        ? "네이버 쇼핑인사이트 수요, 트렌드, PC/모바일 비중을 실제 점수 계산에 반영했습니다."
+        : "네이버 쇼핑인사이트 응답은 성공했지만 추세 데이터가 비어 있습니다.",
+      data: trendPoints.length
         ? {
             keyword: normalizedKeyword,
-            trendPoints: points,
-            growthRate: calculateGrowthRate(points),
-            seasonality: inferSeasonality(points),
+            trendPoints,
+            pcTrendPoints,
+            mobileTrendPoints,
+            growthRate: calculateGrowthRate(trendPoints),
+            seasonality: inferSeasonality(trendPoints),
+            mobileTrendRatio: calculateDeviceRatio(mobileTrendPoints, pcTrendPoints),
+            pcTrendRatio: calculateDeviceRatio(pcTrendPoints, mobileTrendPoints),
+            categoryId,
           }
         : null,
       fetchedAt: new Date().toISOString(),
     };
   } catch (error) {
     return {
-      source: "Naver DataLab",
+      source: "Naver DataLab Shopping Insight",
       status: "SOURCE LIMITED",
       keyword: normalizedKeyword,
-      message: `네이버 데이터랩 호출에 실패했습니다. ${error instanceof Error ? error.message : ""}`.trim(),
+      message: `네이버 쇼핑인사이트 호출에 실패했습니다. ${error instanceof Error ? error.message : ""}`.trim(),
       data: null,
       fetchedAt: new Date().toISOString(),
     };
   }
+}
+
+async function fetchShoppingInsight({
+  keyword,
+  categoryId,
+  clientId,
+  clientSecret,
+  device,
+}: {
+  keyword: string;
+  categoryId: string;
+  clientId: string;
+  clientSecret: string;
+  device?: "pc" | "mo";
+}) {
+  const response = await fetch(NAVER_SHOPPING_INSIGHT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Naver-Client-Id": clientId,
+      "X-Naver-Client-Secret": clientSecret,
+    },
+    body: JSON.stringify({
+      startDate: getDateBeforeDays(90),
+      endDate: getDateBeforeDays(1),
+      timeUnit: "week",
+      category: categoryId,
+      keyword: [{ name: keyword, param: [keyword] }],
+      ...(device ? { device } : {}),
+    }),
+    next: { revalidate: 3600 },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Naver Shopping Insight failed: ${response.status} ${errorText}`);
+  }
+
+  return (await response.json()) as NaverShoppingInsightResponse;
 }
 
 function calculateGrowthRate(points: Array<{ ratio: number }>) {
@@ -106,6 +137,14 @@ function inferSeasonality(points: Array<{ ratio: number }>) {
   if (recent >= previous * 1.15) return "상승 계절성";
   if (recent <= previous * 0.85) return "하락 계절성";
   return "안정 추세";
+}
+
+function calculateDeviceRatio(primary: Array<{ ratio: number }>, secondary: Array<{ ratio: number }>) {
+  const primaryRecent = average(primary.slice(-4).map((point) => point.ratio));
+  const secondaryRecent = average(secondary.slice(-4).map((point) => point.ratio));
+  const total = primaryRecent + secondaryRecent;
+  if (!total) return null;
+  return Math.round((primaryRecent / total) * 100);
 }
 
 function average(values: number[]) {

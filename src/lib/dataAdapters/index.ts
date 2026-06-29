@@ -2,11 +2,13 @@ import { fetchCoupangPartnersProducts } from "./coupangPartnersAdapter";
 import { fetchGoogleTrendSignal } from "./googleTrendsAdapter";
 import { fetchNaverDataLabTrend } from "./naverDataLabAdapter";
 import { fetchNaverSearchAdKeywords } from "./naverSearchAdAdapter";
+import { fetchNaverShoppingProducts } from "./naverShoppingSearchAdapter";
 
 export async function fetchViniminiMarketSignals(keyword: string) {
-  const [coupangPartners, naverDataLab, naverSearchAd, googleTrends] = await Promise.all([
+  const [coupangPartners, naverDataLab, naverShoppingSearch, naverSearchAd, googleTrends] = await Promise.all([
     fetchCoupangPartnersProducts(keyword),
     fetchNaverDataLabTrend(keyword),
+    fetchNaverShoppingProducts(keyword),
     fetchNaverSearchAdKeywords(keyword),
     fetchGoogleTrendSignal(keyword),
   ]);
@@ -16,6 +18,7 @@ export async function fetchViniminiMarketSignals(keyword: string) {
     adapters: {
       coupangPartners,
       naverDataLab,
+      naverShoppingSearch,
       naverSearchAd,
       googleTrends,
     },

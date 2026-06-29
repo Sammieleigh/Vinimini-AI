@@ -25,6 +25,9 @@ type AutoDiscoveryOpportunity = {
     pcSearchRatio: number | null;
     competitionLevel: string;
     seasonality: string;
+    naverShoppingProductCount: number;
+    naverShoppingLowestPrice: string | null;
+    naverShoppingMallName: string | null;
     coupangProductCount: number;
     mobileCommerceFit: string;
   };
@@ -229,6 +232,20 @@ export function AutoDiscoveryPanel() {
               <span className="border border-[#3D3933] px-2 py-1 text-xs text-[#CFC4B6]">{item.status}</span>
             </div>
             <p className="mt-3 text-sm leading-6 text-[#E2D8CB]">{item.marketOpportunity}</p>
+            <div className="mt-3 grid gap-2 border border-[#3D3933] bg-[#111111] p-3 sm:grid-cols-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#CFC4B6]">VERIFIED INFORMATION</p>
+                <p className="mt-2 text-xs leading-5 text-[#E2D8CB]">
+                  네이버 쇼핑 상품 {item.verifiedSignals.naverShoppingProductCount}개
+                  {item.verifiedSignals.naverShoppingLowestPrice ? ` · 최저가 ${item.verifiedSignals.naverShoppingLowestPrice}` : ""}
+                  {item.verifiedSignals.naverShoppingMallName ? ` · ${item.verifiedSignals.naverShoppingMallName}` : ""}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#CFC4B6]">AI ANALYSIS</p>
+                <p className="mt-2 text-xs leading-5 text-[#E2D8CB]">{item.viniminiFit}</p>
+              </div>
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {item.sourceBadges.map((badge, badgeIndex) => (
                 <span key={`${item.keyword}-${badge}-${badgeIndex}`} className="border border-[#3D3933] px-2 py-1 text-[11px] font-semibold text-[#CFC4B6]">

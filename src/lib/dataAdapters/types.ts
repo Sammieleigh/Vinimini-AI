@@ -21,8 +21,13 @@ export type PartnerProduct = {
 export type DataLabTrend = {
   keyword: string;
   trendPoints: Array<{ period: string; ratio: number }>;
+  pcTrendPoints: Array<{ period: string; ratio: number }>;
+  mobileTrendPoints: Array<{ period: string; ratio: number }>;
   growthRate: number;
   seasonality: string;
+  mobileTrendRatio: number | null;
+  pcTrendRatio: number | null;
+  categoryId: string;
 };
 
 export type SearchAdKeyword = {
@@ -40,4 +45,14 @@ export type GoogleTrendSignal = {
   keyword: string;
   trendScore: number | null;
   rising: boolean;
+};
+
+export type NaverShoppingProduct = {
+  productName: string;
+  price: string;
+  image: string;
+  productUrl: string;
+  mallName: string;
+  brand: string;
+  category: string;
 };

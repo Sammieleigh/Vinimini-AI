@@ -3,6 +3,7 @@ import type { DataEngineSource, DataFreshness } from "@/lib/viniminiDataEngine";
 export type AdapterEnvironmentStatus = {
   coupangPartners: DataFreshness;
   naverDataLab: DataFreshness;
+  naverShoppingSearch: DataFreshness;
   naverSearchAd: DataFreshness;
   googleTrends: DataFreshness;
 };
@@ -13,6 +14,7 @@ export function getAdapterEnvironmentStatus(): AdapterEnvironmentStatus {
       ? "LIVE DATA"
       : "API NOT CONNECTED",
     naverDataLab: hasEnv("NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET") ? "LIVE DATA" : "API NOT CONNECTED",
+    naverShoppingSearch: hasEnv("NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET") ? "LIVE DATA" : "API NOT CONNECTED",
     naverSearchAd: hasEnv("NAVER_SEARCHAD_API_KEY", "NAVER_SEARCHAD_SECRET_KEY", "NAVER_SEARCHAD_CUSTOMER_ID")
       ? "LIVE DATA"
       : "API NOT CONNECTED",
@@ -31,8 +33,14 @@ export function createDataEngineSources(status: AdapterEnvironmentStatus): DataE
     {
       name: "네이버 데이터랩",
       status: status.naverDataLab,
-      role: "검색 추세와 계절성 계산",
-      provides: ["검색량 추세", "성장률", "계절성"],
+      role: "쇼핑인사이트 수요와 기기별 트렌드 계산",
+      provides: ["수요 추세", "성장률", "계절성", "PC 비중", "모바일 비중"],
+    },
+    {
+      name: "네이버 쇼핑 검색 API",
+      status: status.naverShoppingSearch,
+      role: "검증 가능한 공개 상품 정보 연결",
+      provides: ["상품명", "가격", "쇼핑몰명", "브랜드", "상품 링크", "카테고리"],
     },
     {
       name: "네이버 검색광고 키워드 도구",
@@ -64,5 +72,5 @@ function hasAnyCredentialPair(...pairs: string[][]) {
 }
 
 function hasLiveSource(status: AdapterEnvironmentStatus) {
-  return [status.coupangPartners, status.naverDataLab, status.naverSearchAd].some((item) => item === "LIVE DATA");
+  return [status.coupangPartners, status.naverDataLab, status.naverShoppingSearch, status.naverSearchAd].some((item) => item === "LIVE DATA");
 }

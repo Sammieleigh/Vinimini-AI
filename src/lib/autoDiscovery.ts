@@ -2,7 +2,8 @@ import { createHash } from "crypto";
 import { fetchCoupangPartnersProducts } from "./dataAdapters/coupangPartnersAdapter";
 import { fetchNaverDataLabTrend } from "./dataAdapters/naverDataLabAdapter";
 import { fetchNaverSearchAdKeywords } from "./dataAdapters/naverSearchAdAdapter";
-import type { AdapterResult, DataLabTrend, PartnerProduct, SearchAdKeyword } from "./dataAdapters/types";
+import { fetchNaverShoppingProducts } from "./dataAdapters/naverShoppingSearchAdapter";
+import type { AdapterResult, DataLabTrend, NaverShoppingProduct, PartnerProduct, SearchAdKeyword } from "./dataAdapters/types";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const PROMPT_VERSION = "auto-discovery-v3-data-integration";
@@ -15,10 +16,12 @@ const CANDIDATE_BATCH_SIZE = 14;
 type DataLabResult = AdapterResult<DataLabTrend | null>;
 type SearchAdResult = AdapterResult<SearchAdKeyword | null>;
 type CoupangPartnersResult = AdapterResult<PartnerProduct[]>;
+type NaverShoppingResult = AdapterResult<NaverShoppingProduct[]>;
 
 type MarketSignal = {
   keyword: string;
   naverDataLab: DataLabResult;
+  naverShoppingSearch: NaverShoppingResult;
   naverSearchAd: SearchAdResult;
   coupangPartners: CoupangPartnersResult;
 };
@@ -51,9 +54,12 @@ export type AutoDiscoveryOpportunity = {
   status: "오늘 새 분석" | "캐시 재사용" | "최근 7일 제외" | "추가 데이터 필요";
   sourceBadges: Array<
     | "NAVER DATALAB"
+    | "NAVER SHOPPING SEARCH"
     | "NAVER SEARCHAD"
     | "OPENAI COUPANG MARKET ANALYSIS"
     | "COUPANG PARTNERS API"
+    | "VERIFIED INFORMATION"
+    | "AI ANALYSIS"
     | "SOURCE LIMITED"
     | "API NOT CONNECTED"
   >;
@@ -66,6 +72,9 @@ export type AutoDiscoveryOpportunity = {
     pcSearchRatio: number | null;
     competitionLevel: string;
     seasonality: string;
+    naverShoppingProductCount: number;
+    naverShoppingLowestPrice: string | null;
+    naverShoppingMallName: string | null;
     coupangProductCount: number;
     mobileCommerceFit: string;
   };
@@ -192,6 +201,7 @@ export async function runAutoDiscovery({ forceRefresh = false }: { forceRefresh?
     cacheStatus: openAiAnalysis.usedOpenAI ? "Fresh Analysis" : openAiAnalysis.cacheStatus,
     candidatesRemoved,
     searchAdConnected: marketSignals.some((signal) => signal.naverSearchAd.status === "LIVE DATA"),
+    naverShoppingConnected: marketSignals.some((signal) => signal.naverShoppingSearch.status === "LIVE DATA"),
     coupangConnected: marketSignals.some((signal) => signal.coupangPartners.status === "LIVE DATA"),
   };
   const meetingTimeline = createMeetingTimeline(meetingContext);
@@ -230,8 +240,9 @@ export async function runAutoDiscovery({ forceRefresh = false }: { forceRefresh?
 }
 
 async function fetchMarketSignals(keyword: string): Promise<MarketSignal> {
-  const [naverDataLab, naverSearchAd, coupangPartners] = await Promise.all([
+  const [naverDataLab, naverShoppingSearch, naverSearchAd, coupangPartners] = await Promise.all([
     fetchNaverDataLabTrend(keyword),
+    fetchNaverShoppingProducts(keyword),
     fetchNaverSearchAdKeywords(keyword),
     fetchCoupangPartnersProducts(keyword),
   ]);
@@ -239,6 +250,7 @@ async function fetchMarketSignals(keyword: string): Promise<MarketSignal> {
   return {
     keyword,
     naverDataLab,
+    naverShoppingSearch,
     naverSearchAd,
     coupangPartners,
   };
@@ -307,7 +319,20 @@ async function analyzeCandidatesWithOpenAI({
       status: signal.naverDataLab.status,
       growthRate: signal.naverDataLab.data?.growthRate ?? null,
       seasonality: signal.naverDataLab.data?.seasonality ?? "데이터 부족",
+      mobileTrendRatio: signal.naverDataLab.data?.mobileTrendRatio ?? null,
+      pcTrendRatio: signal.naverDataLab.data?.pcTrendRatio ?? null,
       latestRatio: signal.naverDataLab.data?.trendPoints.at(-1)?.ratio ?? null,
+    },
+    naverShoppingSearch: {
+      status: signal.naverShoppingSearch.status,
+      productCount: signal.naverShoppingSearch.data.length,
+      verifiedProductFields: signal.naverShoppingSearch.data.slice(0, 3).map((product) => ({
+        productName: product.productName,
+        price: product.price,
+        mallName: product.mallName,
+        brand: product.brand,
+        category: product.category,
+      })),
     },
     naverSearchAd: {
       status: signal.naverSearchAd.status,
@@ -421,6 +446,9 @@ function buildTop10(
           pcSearchRatio: signal?.naverSearchAd.data?.pcSearchRatio ?? null,
           competitionLevel: signal?.naverSearchAd.data?.competitionLevel ?? "데이터 부족",
           seasonality: signal?.naverDataLab.data?.seasonality ?? "데이터 부족",
+          naverShoppingProductCount: signal?.naverShoppingSearch.data.length ?? 0,
+          naverShoppingLowestPrice: signal?.naverShoppingSearch.data[0]?.price ?? null,
+          naverShoppingMallName: signal?.naverShoppingSearch.data[0]?.mallName ?? null,
           coupangProductCount: signal?.coupangPartners.data.length ?? 0,
           mobileCommerceFit: createMobileCommerceFit(signal),
         },
@@ -441,12 +469,13 @@ function calculateOpportunityScore(signal: MarketSignal | undefined, openAiScore
   const pcSearchRatio = signal?.naverSearchAd.data?.pcSearchRatio ?? null;
   const competition = signal?.naverSearchAd.data?.competitionLevel ?? "데이터 부족";
   const coupangProductCount = signal?.coupangPartners.data.length ?? 0;
+  const naverShoppingProductCount = signal?.naverShoppingSearch.data.length ?? 0;
 
   const searchGrowthScore = clamp(50 + growth, 0, 100);
   const demandScore = totalMonthlySearchVolume ? clamp(Math.round(Math.log10(totalMonthlySearchVolume + 1) * 20), 20, 100) : clamp(Math.round(latestRatio), 10, 70);
   const competitionScore = competition === "낮음" ? 88 : competition === "중간" ? 68 : competition === "높음" ? 38 : 52;
   const entryDifficultyScore = competition === "높음" ? 40 : competition === "중간" ? 62 : competition === "낮음" ? 82 : 55;
-  const marginScore = inferMarginScore(signal?.keyword || "", coupangProductCount);
+  const marginScore = inferMarginScore(signal?.keyword || "", coupangProductCount + naverShoppingProductCount);
   const reviewRiskScore = coupangProductCount ? 65 : 48;
   const mobileImportanceBoost = mobileSearchRatio !== null && mobileSearchRatio >= 70 ? 12 : mobileSearchRatio !== null && mobileSearchRatio >= 55 ? 6 : 0;
   const pcImportanceBoost = pcSearchRatio !== null && pcSearchRatio >= 45 ? 10 : pcSearchRatio !== null && pcSearchRatio >= 30 ? 5 : 0;
@@ -493,11 +522,18 @@ function calculateOpportunityScore(signal: MarketSignal | undefined, openAiScore
 
 function createSourceBadges(signal: MarketSignal | undefined, hasOpenAiAnalysis: boolean): AutoDiscoveryOpportunity["sourceBadges"] {
   const badges: AutoDiscoveryOpportunity["sourceBadges"] = [];
+  if (signal?.naverDataLab.status === "LIVE DATA" || signal?.naverShoppingSearch.status === "LIVE DATA" || signal?.naverSearchAd.status === "LIVE DATA") {
+    badges.push("VERIFIED INFORMATION");
+  }
   if (signal?.naverDataLab.status === "LIVE DATA") badges.push("NAVER DATALAB");
+  if (signal?.naverShoppingSearch.status === "LIVE DATA") badges.push("NAVER SHOPPING SEARCH");
   if (signal?.naverSearchAd.status === "LIVE DATA") badges.push("NAVER SEARCHAD");
   if (signal?.coupangPartners.status === "LIVE DATA") badges.push("COUPANG PARTNERS API");
-  if (hasOpenAiAnalysis) badges.push("OPENAI COUPANG MARKET ANALYSIS");
-  if (!badges.length || [signal?.naverDataLab.status, signal?.naverSearchAd.status, signal?.coupangPartners.status].includes("SOURCE LIMITED")) {
+  if (hasOpenAiAnalysis) badges.push("AI ANALYSIS", "OPENAI COUPANG MARKET ANALYSIS");
+  if (
+    !badges.length ||
+    [signal?.naverDataLab.status, signal?.naverShoppingSearch.status, signal?.naverSearchAd.status, signal?.coupangPartners.status].includes("SOURCE LIMITED")
+  ) {
     badges.push("SOURCE LIMITED");
   }
   if ([signal?.naverSearchAd.status, signal?.coupangPartners.status].includes("API NOT CONNECTED")) badges.push("API NOT CONNECTED");
@@ -507,8 +543,12 @@ function createSourceBadges(signal: MarketSignal | undefined, hasOpenAiAnalysis:
 function createMarketOpportunity(signal: MarketSignal | undefined) {
   const growth = signal?.naverDataLab.data?.growthRate;
   const searchVolume = signal?.naverSearchAd.data?.totalMonthlySearchVolume;
+  const shoppingProduct = signal?.naverShoppingSearch.data[0];
   if (typeof growth === "number" && searchVolume) {
     return `DataLab 성장률 ${growth}%와 월 검색량 ${searchVolume.toLocaleString("ko-KR")}회를 함께 확인했습니다.`;
+  }
+  if (shoppingProduct) {
+    return `VERIFIED INFORMATION: 네이버 쇼핑에서 ${shoppingProduct.mallName}의 ${shoppingProduct.productName} 상품 신호를 확인했습니다.`;
   }
   if (typeof growth === "number") return `DataLab 성장률 ${growth}%를 실제 신호로 반영했습니다. SearchAd 데이터는 추가 연결이 필요합니다.`;
   if (searchVolume) return `SearchAd 월 검색량 ${searchVolume.toLocaleString("ko-KR")}회를 확인했습니다. DataLab 추세는 추가 데이터 필요입니다.`;
@@ -565,6 +605,7 @@ function createMeetingTimeline({
   candidatesRemoved,
   searchAdConnected,
   coupangConnected,
+  naverShoppingConnected,
 }: {
   generatedCount: number;
   risingCount: number;
@@ -574,6 +615,7 @@ function createMeetingTimeline({
   cacheStatus: string;
   candidatesRemoved: number;
   searchAdConnected: boolean;
+  naverShoppingConnected: boolean;
   coupangConnected: boolean;
 }): AutoDiscoveryMeetingStep[] {
   return [
@@ -589,7 +631,14 @@ function createMeetingTimeline({
       department: "Trend Director AI",
       title: "Naver DataLab 검색 추세 분석",
       result: `상승 후보 ${risingCount}개 확인`,
-      detail: "DataLab 실제 ratio, 최근 4주 성장률, 계절성을 Opportunity Score에 반영했습니다.",
+      detail: "Naver DataLab Shopping Insight의 수요, 최근 4주 성장률, 계절성, PC/모바일 비중을 Opportunity Score에 반영했습니다.",
+    },
+    {
+      time: "00:12",
+      department: "Shopping Search Director AI",
+      title: "Naver Shopping Search 상품 신호 확인",
+      result: naverShoppingConnected ? "상품명, 가격, 쇼핑몰, 브랜드 연결" : "NAVER SHOPPING SEARCH API NOT CONNECTED",
+      detail: "상품명, 가격, 쇼핑몰명, 브랜드, 링크는 VERIFIED INFORMATION으로 분리하고 OpenAI 분석과 구분합니다.",
     },
     {
       time: "00:15",
@@ -657,12 +706,14 @@ function createAiDiscussion({
   topMargin,
   searchAdConnected,
   coupangConnected,
+  naverShoppingConnected,
 }: {
   generatedCount: number;
   candidatesRemoved: number;
   topKeyword: string;
   topMargin: string;
   searchAdConnected: boolean;
+  naverShoppingConnected: boolean;
   coupangConnected: boolean;
 }): AutoDiscoveryDiscussionStep[] {
   return [
@@ -679,6 +730,14 @@ function createAiDiscussion({
       decision: "성장률과 계절성 신호를 SearchAd Director에게 전달합니다.",
     },
     {
+      department: "Shopping Search Director AI",
+      inputFromPrevious: "Trend Director의 쇼핑인사이트 성장률 판단",
+      message: naverShoppingConnected
+        ? "네이버 쇼핑 검색에서 상품명, 가격, 쇼핑몰명, 브랜드, 링크를 확인했습니다. 이 정보는 VERIFIED INFORMATION으로만 사용합니다."
+        : "네이버 쇼핑 검색 API가 연결되지 않아 상품명, 가격, 쇼핑몰, 브랜드 근거는 SOURCE LIMITED입니다.",
+      decision: "확인된 상품 신호만 OpenAI Market Analysis에 전달합니다.",
+    },
+    {
       department: "SearchAd Director AI",
       inputFromPrevious: "Trend Director의 DataLab 성장률 판단",
       message: searchAdConnected
@@ -688,8 +747,8 @@ function createAiDiscussion({
     },
     {
       department: "OpenAI Market Analysis",
-      inputFromPrevious: "DataLab, SearchAd, Coupang 공식 Adapter 신호",
-      message: "후보 전체를 하나의 Batch로 분석했습니다. 존재하지 않는 쿠팡 리뷰, 판매량, 순위, 가격은 만들지 않았습니다.",
+      inputFromPrevious: "DataLab, Naver Shopping Search, SearchAd, Coupang 공식 Adapter 신호",
+      message: "후보 전체를 하나의 Batch로 분석했습니다. 확인 정보는 VERIFIED INFORMATION, AI 판단은 AI ANALYSIS로 분리합니다. 존재하지 않는 쿠팡 리뷰, 판매량, 순위, 가격은 만들지 않았습니다.",
       decision: "근거가 부족한 항목은 추가 데이터 필요로 유지합니다.",
     },
     {
@@ -796,7 +855,16 @@ function toSourceHashSignal(signal: MarketSignal) {
       status: signal.naverDataLab.status,
       growthRate: signal.naverDataLab.data?.growthRate ?? null,
       seasonality: signal.naverDataLab.data?.seasonality ?? null,
+      mobileTrendRatio: signal.naverDataLab.data?.mobileTrendRatio ?? null,
+      pcTrendRatio: signal.naverDataLab.data?.pcTrendRatio ?? null,
       latest: signal.naverDataLab.data?.trendPoints.at(-1)?.ratio ?? null,
+    },
+    naverShoppingSearch: {
+      status: signal.naverShoppingSearch.status,
+      productCount: signal.naverShoppingSearch.data.length,
+      firstProduct: signal.naverShoppingSearch.data[0]?.productName ?? null,
+      firstPrice: signal.naverShoppingSearch.data[0]?.price ?? null,
+      firstMall: signal.naverShoppingSearch.data[0]?.mallName ?? null,
     },
     naverSearchAd: {
       status: signal.naverSearchAd.status,
