@@ -26,6 +26,7 @@ type MarketResearchCompetitor = {
   relevanceScore: number;
   relevanceReason: string;
   evidenceStatus: "VERIFIED INFORMATION" | "PARTIAL DATA" | "SOURCE LIMITED";
+  researchSource: "Coupang Official API" | "Coupang HTML" | "OpenAI Search" | "Coupang Ads Trend Insights" | "Other Public Sources";
 };
 
 type MarketResearchResult = {
@@ -39,7 +40,7 @@ type MarketResearchResult = {
   sourceBadges: string[];
   competitors: MarketResearchCompetitor[];
   excludedCompetitors: MarketResearchCompetitor[];
-  searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number }>;
+  searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number; status: "COLLECTED" | "COUPANG COLLECTION FAILED" }>;
   selectedCount: number;
   aiAnalysis: {
     competitionStrength: string;
@@ -147,6 +148,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
               <th className="px-4 py-3">판매 링크</th>
               <th className="px-4 py-3">관련도</th>
               <th className="px-4 py-3">근거</th>
+              <th className="px-4 py-3">리서치 출처</th>
             </tr>
           </thead>
           <tbody>
@@ -175,11 +177,12 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                   </td>
                   <td className="px-4 py-4">{competitor.relevanceScore}점</td>
                   <td className="px-4 py-4">{formatBadge(competitor.evidenceStatus)}</td>
+                  <td className="px-4 py-4">{formatBadge(competitor.researchSource)}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-sm font-semibold text-[#625B53]">
+                <td colSpan={11} className="px-4 py-8 text-center text-sm font-semibold text-[#625B53]">
                   {isLoading ? "동일 카테고리 쿠팡 경쟁상품을 확인하고 있습니다." : "동일 카테고리 경쟁상품 데이터를 불러오지 못했습니다. 키워드를 조정해 다시 리서치하세요."}
                 </td>
               </tr>
@@ -205,6 +208,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="border border-[#111111] px-2 py-1 text-xs font-semibold">{formatBadge(competitor.evidenceStatus)}</span>
+                <span className="border border-[#D9D0C4] px-2 py-1 text-xs font-semibold text-[#625B53]">{formatBadge(competitor.researchSource)}</span>
                 <span className="text-xs text-[#8A8277]">#{index + 1}</span>
               </div>
               <h3 className="mt-2 text-lg font-semibold">
@@ -316,7 +320,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">검색 단계</p>
             <div className="mt-2 grid gap-1">
-              {(research?.searchLogs?.length ? research.searchLogs : [{ keyword: "검색 준비 중", searchUrl: "", resultCount: 0, selectedCount: 0 }]).map((log, index) => (
+              {(research?.searchLogs?.length ? research.searchLogs : [{ keyword: "검색 준비 중", searchUrl: "", resultCount: 0, selectedCount: 0, status: "COUPANG COLLECTION FAILED" as const }]).map((log, index) => (
                 <div key={`${log.keyword}-${log.selectedCount}`} className="border border-[#E5DED5] bg-[#FBFAF7] p-3">
                   <p className="font-semibold">
                     {index + 1}. {log.keyword}
@@ -329,6 +333,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                   <p className="mt-1">
                     결과: {log.resultCount}개 <span className="text-[#8A8277]">(누적 선택 {log.selectedCount}개)</span>
                   </p>
+                  <p className="mt-1 text-xs font-semibold text-[#8A8277]">{log.status}</p>
                 </div>
               ))}
             </div>
@@ -428,6 +433,11 @@ function formatBadge(value: string) {
     "OPENAI MARKET RESEARCH": "AI 시장 리서치",
     "COUPANG PUBLIC WEB": "쿠팡 공개 정보",
     "COUPANG ADS TREND INSIGHTS": "쿠팡 광고 트렌드",
+    "Coupang Official API": "쿠팡 공식 API",
+    "Coupang HTML": "쿠팡 HTML",
+    "OpenAI Search": "OpenAI 공개 검색",
+    "Coupang Ads Trend Insights": "쿠팡 광고 트렌드",
+    "Other Public Sources": "기타 공개 근거",
   };
   return labels[value] || formatDisplayText(value, "근거 부족");
 }

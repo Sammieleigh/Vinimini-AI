@@ -15,6 +15,8 @@ const MORE_DATA_REQUIRED_KO = "추가 데이터 필요";
 const SOURCE_LIMITED_KO = "근거 부족";
 const WIDE_SLACKS_EMPTY_MESSAGE = "동일 카테고리 경쟁상품 데이터를 불러오지 못했습니다. 키워드를 조정해 다시 리서치하세요.";
 
+type ResearchSource = "Coupang Official API" | "Coupang HTML" | "OpenAI Search" | "Coupang Ads Trend Insights" | "Other Public Sources";
+
 export type MarketResearchCompetitor = {
   productName: string;
   price: string;
@@ -36,6 +38,7 @@ export type MarketResearchCompetitor = {
   relevanceScore: number;
   relevanceReason: string;
   evidenceStatus: "VERIFIED INFORMATION" | "PARTIAL DATA" | "SOURCE LIMITED";
+  researchSource: ResearchSource;
 };
 
 export type MarketResearchResult = {
@@ -48,10 +51,10 @@ export type MarketResearchResult = {
   sourceHash: string;
   cacheKey: string;
   categoryProfile: CategoryProfile;
-  sourceBadges: Array<"VERIFIED INFORMATION" | "PARTIAL DATA" | "AI ANALYSIS" | "SOURCE LIMITED" | "MORE DATA REQUIRED" | "OPENAI MARKET RESEARCH" | "COUPANG PUBLIC WEB" | "COUPANG ADS TREND INSIGHTS">;
+  sourceBadges: Array<"VERIFIED INFORMATION" | "PARTIAL DATA" | "AI ANALYSIS" | "SOURCE LIMITED" | "MORE DATA REQUIRED" | "OPENAI MARKET RESEARCH" | "COUPANG PUBLIC WEB" | "COUPANG ADS TREND INSIGHTS" | ResearchSource>;
   competitors: MarketResearchCompetitor[];
   excludedCompetitors: MarketResearchCompetitor[];
-  searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number }>;
+  searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number; status: "COLLECTED" | "COUPANG COLLECTION FAILED" }>;
   selectedCount: number;
   aiAnalysis: {
     competitionStrength: string;
@@ -196,7 +199,7 @@ export async function runOpenAiMarketResearch({
           {
             role: "system",
             content:
-                "You are VINIMINI Executive Market Research Engine for Korean Coupang sellers. Prioritize Coupang public product pages, Coupang Ads Trend Insights, and public Coupang-related web information. Never invent product facts, review counts, ratings, prices, sellers, shipping, URLs, thumbnails, sales volume, or rankings. Return JSON only. All user-facing JSON string values must be written in Korean. Do not write English analysis sentences. If evidence is insufficient, write '근거 부족' or '추가 데이터 필요' in Korean.",
+                "You are VINIMINI Executive Market Research Engine for Korean Coupang sellers. First use the provided Coupang HTML/API products. If Coupang HTML collection failed or is insufficient, use OpenAI web search only to find real publicly available Coupang product pages for the same Korean keywords. Never invent competitor products, product facts, review counts, ratings, prices, sellers, shipping, URLs, thumbnails, sales volume, or rankings. Return no competitor row unless it is tied to a real public Coupang URL or provided Coupang HTML/API evidence. Return JSON only. All user-facing JSON string values must be written in Korean. Do not write English analysis sentences. If evidence is insufficient, write '근거 부족' or '추가 데이터 필요' in Korean.",
           },
           {
             role: "user",
@@ -211,6 +214,7 @@ export async function runOpenAiMarketResearch({
                 keyword: log.keyword,
                 searchUrl: log.searchUrl,
                 collectedByApiAndHtmlParser: log.selectedCount,
+                status: log.status,
               })),
               verifiedOfficialCoupangProducts: verifiedCoupangCompetitors.map((item) => ({
                 productName: item.productName,
@@ -221,24 +225,25 @@ export async function runOpenAiMarketResearch({
                 unavailableFields: ["reviewCount", "rating", "seller", "shippingInfo", "rocketDelivery"],
               })),
               sourcePriority: [
-                "1. Coupang public product pages",
-                `2. Coupang Ads Trend Insights (${COUPANG_ADS_TRENDS_URL}) for seasonality, category trend, keyword trend, customer purchase trend, and ad timing only`,
-                "3. Public Coupang-related web information",
-                "4. Other public market sources only when they improve confidence",
+                "1. Coupang HTML/API products already collected by the server",
+                "2. If the server collected fewer than 5 items, OpenAI Search may find real public Coupang product pages for the exact Korean keyword set",
+                `3. Coupang Ads Trend Insights (${COUPANG_ADS_TRENDS_URL}) for seasonality, category trend, keyword trend, customer purchase trend, and ad timing only`,
+                "4. Other public sources only as supporting context, not as product rows unless they point to a real Coupang product page",
               ],
               strictRules: [
                 `Search these same-category keywords in order and do not broaden beyond them: ${categoryProfile.allowedKeywordExpansion.join(" -> ")}`,
                 `Score each discovered product for category relevance against: ${categoryProfile.categoryLock}`,
                 `Products containing these terms are hard-excluded and must not be used as competitors or excluded candidates: ${categoryProfile.excludedTerms.join(", ") || "none"}`,
                 "For wide-slacks research, only pants/slacks/trouser-family products are allowed. Never return shoes, dresses, tops, sleeveless tops, leggings, underwear, bags, or hats.",
-                "Do not discard publicly verified same-category Coupang products. Return them with relevanceScore and relevanceReason so the server can place low relevance but same-family items in excluded candidates.",
-                "If official API and HTML Parser data is insufficient, use public web research to add same-category Coupang competitors only when productName and at least one evidence field such as productUrl, price, reviewCount, or rating is available.",
-                "When official API and HTML Parser return fewer than 5 competitors, inspect the provided exact Coupang search URLs and public Coupang-related web results, then return up to 10 same-category competitors with public evidence.",
-                "OpenAI-discovered competitors may be included in the final list when they include public evidence. Missing fields must remain SOURCE LIMITED or MORE DATA REQUIRED.",
+                "Do not discard publicly verified same-category Coupang products. Return them with relevanceScore, relevanceReason, and researchSource.",
+                "If official API and HTML Parser data is insufficient, use OpenAI Search to add same-category Coupang competitors only when the product has a real public Coupang productUrl.",
+                "When official API and HTML Parser return fewer than 5 competitors, inspect the provided exact Coupang search URLs and public Coupang-related web results, then return up to 10 same-category competitors with public Coupang URL evidence.",
+                "OpenAI-discovered competitors must set researchSource to 'OpenAI Search'. Server-collected HTML products use 'Coupang HTML'. Coupang Ads Trend Insights is supporting trend context, not direct product-row evidence.",
+                "OpenAI-discovered competitor rows without a Coupang productUrl must be omitted. Missing fields must remain SOURCE LIMITED or MORE DATA REQUIRED.",
                 "Verified product fields must come from public evidence. AI interpretation must stay in aiAnalysis.",
                 "Every analysis sentence shown to the CEO must be Korean only.",
               ],
-              collectWhenVerified: ["productName", "thumbnailUrl", "price", "reviewCount", "rating", "seller", "shippingInfo", "rocketDelivery", "sellingPoints", "productUrl"],
+              collectWhenVerified: ["productName", "thumbnailUrl", "price", "reviewCount", "rating", "seller", "shippingInfo", "rocketDelivery", "sellingPoints", "productUrl", "researchSource"],
               analyzeSeparately: [
                 "competitionStrength",
                 "pricePosition",
@@ -253,7 +258,7 @@ export async function runOpenAiMarketResearch({
               perCompetitorAnalysis:
                 "For each competitor, analyze whyItSells, thumbnailFeatures, firstScreenFeatures, detailPageFeatures, repeatedReviewPros, repeatedReviewCons, differentiationHints in Korean only. If reviews are unavailable, write 근거 부족 instead of inventing complaints.",
               outputSchema:
-                "{ competitors: [{ productName, price, reviewCount, rating, seller, shippingInfo, rocketDelivery, productUrl, thumbnailUrl, sellingPoints, thumbnailFeatures, firstScreenFeatures, detailPageFeatures, repeatedReviewPros, repeatedReviewCons, differentiationHints, whyItSells, relevanceScore, relevanceReason, evidenceStatus }], aiAnalysis: { competitionStrength, pricePosition, reviewBarrier, detailPageStrengths, thumbnailPattern, customerComplaints, differentiationPoints, summary, recommendedAction } }",
+                "{ competitors: [{ productName, price, reviewCount, rating, seller, shippingInfo, rocketDelivery, productUrl, thumbnailUrl, sellingPoints, thumbnailFeatures, firstScreenFeatures, detailPageFeatures, repeatedReviewPros, repeatedReviewCons, differentiationHints, whyItSells, relevanceScore, relevanceReason, evidenceStatus, researchSource }], aiAnalysis: { competitionStrength, pricePosition, reviewBarrier, detailPageStrengths, thumbnailPattern, customerComplaints, differentiationPoints, summary, recommendedAction } }",
             }),
           },
         ],
@@ -269,6 +274,7 @@ export async function runOpenAiMarketResearch({
     const hasVerified = competitors.some((item) => item.evidenceStatus === "VERIFIED INFORMATION");
     const hasPartial = competitors.some((item) => item.evidenceStatus === "PARTIAL DATA");
     const hasAnyProductData = competitors.length + ranked.excludedCompetitors.length > 0;
+    const researchSources = Array.from(new Set([...competitors, ...ranked.excludedCompetitors].map((item) => item.researchSource)));
     const aiAnalysis = competitors.length ? parsed.aiAnalysis : createEmptyResearch(categoryProfile).aiAnalysis;
     const result: MarketResearchResult = {
       ok: true,
@@ -280,7 +286,7 @@ export async function runOpenAiMarketResearch({
       sourceHash,
       cacheKey,
       categoryProfile,
-      sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData }),
+      sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData, researchSources }),
       competitors,
       excludedCompetitors: ranked.excludedCompetitors,
       searchLogs: officialCoupangSearch.searchLogs,
@@ -288,7 +294,7 @@ export async function runOpenAiMarketResearch({
       aiAnalysis,
       finance: createFinanceStats(),
       message: hasVerified
-        ? "쿠팡 공식 상품 검색과 OpenAI Market Research Engine이 쿠팡 공개 상품 리스트를 관련도 기준으로 정리했습니다."
+        ? "쿠팡 HTML/API와 OpenAI Search가 실제 공개 쿠팡 근거를 기준으로 경쟁상품을 정리했습니다."
         : WIDE_SLACKS_EMPTY_MESSAGE,
       lastAnalyzedAt: new Date().toISOString(),
     };
@@ -365,11 +371,12 @@ function sanitizeCompetitors(items: Array<Partial<MarketResearchCompetitor>>, ca
       relevanceScore: normalizeScore(item.relevanceScore, calculateRelevanceScore(item.productName || "", categoryProfile)),
       relevanceReason: sanitizeKoreanText(item.relevanceReason, createRelevanceReason(item.productName || "", categoryProfile)),
       evidenceStatus: inferEvidenceStatus(item),
+      researchSource: normalizeResearchSource(item.researchSource),
     }));
 }
 
 function hasCandidateEvidence(item: Partial<MarketResearchCompetitor>) {
-  return hasUsableValue(item.productName) && (hasUsableValue(item.productUrl) || hasUsableValue(item.price) || hasUsableValue(item.reviewCount) || hasUsableValue(item.rating));
+  return hasUsableValue(item.productName) && hasUsableValue(item.productUrl) && item.productUrl?.includes("coupang.com");
 }
 
 function mapPartnerProductsToCompetitors(products: PartnerProduct[], categoryProfile: CategoryProfile): MarketResearchCompetitor[] {
@@ -400,6 +407,7 @@ function mapPartnerProductsToCompetitors(products: PartnerProduct[], categoryPro
         price: product.price,
         productUrl: product.productUrl,
       }),
+      researchSource: "Coupang Official API",
     }));
 }
 
@@ -429,7 +437,13 @@ async function fetchOfficialCoupangCompetitors(categoryProfile: CategoryProfile)
 
     competitors.push(...ranked.competitors);
     const selectedCount = mergeCompetitors([], competitors).length;
-    searchLogs.push({ keyword, searchUrl: createCoupangSearchUrl(keyword), resultCount: ranked.competitors.length, selectedCount });
+    searchLogs.push({
+      keyword,
+      searchUrl: createCoupangSearchUrl(keyword),
+      resultCount: ranked.competitors.length,
+      selectedCount,
+      status: ranked.competitors.length ? "COLLECTED" : "COUPANG COLLECTION FAILED",
+    });
     if (selectedCount >= 5) break;
   }
 
@@ -471,6 +485,7 @@ function mapPublicSearchProductsToCompetitors(products: CoupangSearchProduct[], 
         rating: product.rating,
         productUrl: product.productUrl,
       }),
+      researchSource: "Coupang HTML",
     }));
 }
 
@@ -535,6 +550,7 @@ function mergeCompetitorRecord(existing: MarketResearchCompetitor, incoming: Mar
     relevanceScore: Math.max(existing.relevanceScore, incoming.relevanceScore),
     relevanceReason: chooseValue(existing.relevanceReason, incoming.relevanceReason),
     evidenceStatus: betterEvidence,
+    researchSource: compareEvidence(incoming.evidenceStatus, existing.evidenceStatus) > 0 ? incoming.researchSource : existing.researchSource,
   };
 }
 
@@ -612,6 +628,7 @@ function createLimitedResult({
   const hasVerified = competitors.some((item) => item.evidenceStatus === "VERIFIED INFORMATION");
   const hasPartial = competitors.some((item) => item.evidenceStatus === "PARTIAL DATA");
   const hasAnyProductData = competitors.length > 0;
+  const researchSources = Array.from(new Set(competitors.map((item) => item.researchSource)));
   return {
     ok: cacheStatus !== "Analysis Limited",
     keyword,
@@ -622,7 +639,7 @@ function createLimitedResult({
     sourceHash,
     cacheKey,
     categoryProfile,
-    sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData }),
+    sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData, researchSources }),
     competitors: competitors.length ? competitors : empty.competitors,
     excludedCompetitors: [],
     searchLogs,
@@ -638,12 +655,17 @@ function createSourceBadges({
   hasVerified,
   hasPartial,
   hasAnyProductData,
+  researchSources = [],
 }: {
   hasVerified: boolean;
   hasPartial: boolean;
   hasAnyProductData: boolean;
+  researchSources?: ResearchSource[];
 }): MarketResearchResult["sourceBadges"] {
   const badges: MarketResearchResult["sourceBadges"] = ["OPENAI MARKET RESEARCH", "COUPANG PUBLIC WEB", "COUPANG ADS TREND INSIGHTS", "AI ANALYSIS"];
+  for (const source of researchSources) {
+    if (!badges.includes(source)) badges.push(source);
+  }
   if (hasVerified) badges.push("VERIFIED INFORMATION");
   if (hasPartial) badges.push("PARTIAL DATA");
   if (!hasVerified && !hasPartial) badges.push("SOURCE LIMITED");
@@ -797,6 +819,14 @@ function inferEvidenceStatus(item: Partial<MarketResearchCompetitor>): MarketRes
   if (productName && price && reviewCount && rating && productUrl) return "VERIFIED INFORMATION";
   if (productName && (price || reviewCount || rating || productUrl)) return "PARTIAL DATA";
   return "SOURCE LIMITED";
+}
+
+function normalizeResearchSource(value: unknown): ResearchSource {
+  if (value === "Coupang Official API") return "Coupang Official API";
+  if (value === "Coupang HTML") return "Coupang HTML";
+  if (value === "Coupang Ads Trend Insights") return "Coupang Ads Trend Insights";
+  if (value === "Other Public Sources") return "Other Public Sources";
+  return "OpenAI Search";
 }
 
 function hasUsableValue(value: unknown) {

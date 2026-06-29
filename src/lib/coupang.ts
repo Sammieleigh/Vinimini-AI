@@ -1,6 +1,31 @@
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import type { CoupangSearchProduct } from "./types";
 
 const COUPANG_ORIGIN = "https://www.coupang.com";
+const DEBUG_HTML_PATH = path.join(process.cwd(), "debug", "coupang-search.html");
+const PRODUCT_BLOCK_SELECTOR = "li.search-product";
+const REQUIRED_SELECTORS = [
+  PRODUCT_BLOCK_SELECTOR,
+  "a.search-product-link",
+  ".name",
+  ".price-value",
+  ".rating-total-count",
+  ".rating",
+  "img[data-img-src], img[src]",
+];
+
+export class CoupangSearchParseError extends Error {
+  selectorFailures: string[];
+  debugHtmlPath: string;
+
+  constructor(message: string, selectorFailures: string[], debugHtmlPath = "debug/coupang-search.html") {
+    super(message);
+    this.name = "CoupangSearchParseError";
+    this.selectorFailures = selectorFailures;
+    this.debugHtmlPath = debugHtmlPath;
+  }
+}
 
 export async function fetchCoupangSearch(keyword: string): Promise<CoupangSearchProduct[]> {
   const normalizedKeyword = keyword.trim();
@@ -21,20 +46,36 @@ export async function fetchCoupangSearch(keyword: string): Promise<CoupangSearch
     next: { revalidate: 900 },
   });
 
+  const html = await response.text();
+
   if (!response.ok) {
-    throw new Error(`Coupang search failed: ${response.status}`);
+    await saveDebugHtml(html);
+    throw new CoupangSearchParseError(`Coupang search failed: ${response.status}`, [`HTTP ${response.status}: 쿠팡 검색 HTML 요청 차단`]);
   }
 
-  const html = await response.text();
-  return parseCoupangSearchHtml(html, normalizedKeyword).slice(0, 10);
+  const products = parseCoupangSearchHtml(html, normalizedKeyword).slice(0, 10);
+  if (products.length === 0) {
+    const selectorFailures = inspectSelectorFailures(html);
+    await saveDebugHtml(html);
+    throw new CoupangSearchParseError("Coupang parser returned 0 products.", selectorFailures);
+  }
+
+  return products;
 }
 
 export function parseCoupangSearchHtml(html: string, keyword: string): CoupangSearchProduct[] {
-  const blocks = html.match(/<li[^>]*class="[^"]*search-product[^"]*"[\s\S]*?<\/li>/g) ?? [];
+  const blocks = findProductBlocks(html);
 
   return blocks
     .map((block, index) => parseProductBlock(block, keyword, index))
     .filter((product): product is CoupangSearchProduct => product !== null);
+}
+
+function findProductBlocks(html: string) {
+  const liBlocks = html.match(/<li[^>]*class="[^"]*search-product[^"]*"[\s\S]*?<\/li>/g) ?? [];
+  if (liBlocks.length) return liBlocks;
+
+  return html.match(/<li[^>]*data-sentry-component="ProductItem"[\s\S]*?<\/li>/g) ?? [];
 }
 
 function parseProductBlock(block: string, keyword: string, index: number): CoupangSearchProduct | null {
@@ -92,6 +133,26 @@ export function toAbsoluteCoupangUrl(url: string) {
 
 function matchFirst(source: string, pattern: RegExp) {
   return source.match(pattern)?.[1] ?? "";
+}
+
+function inspectSelectorFailures(html: string) {
+  const checks: Array<[string, RegExp]> = [
+    [PRODUCT_BLOCK_SELECTOR, /<li[^>]*class="[^"]*search-product[^"]*"/],
+    ["a.search-product-link", /<a[^>]*class="[^"]*search-product-link[^"]*"/],
+    [".name", /<div[^>]*class="[^"]*\bname\b[^"]*"/],
+    [".price-value", /<strong[^>]*class="[^"]*\bprice-value\b[^"]*"/],
+    [".rating-total-count", /<span[^>]*class="[^"]*\brating-total-count\b[^"]*"/],
+    [".rating", /<em[^>]*class="[^"]*\brating\b[^"]*"/],
+    ["img[data-img-src], img[src]", /<img[^>]*(?:data-img-src|src)=/],
+  ];
+  const failures = checks.filter(([, pattern]) => !pattern.test(html)).map(([selector]) => selector);
+  if (/Access Denied/i.test(html)) failures.unshift("Access Denied: 쿠팡이 현재 실행 환경의 공개 검색 요청을 차단했습니다.");
+  return failures.length ? failures : REQUIRED_SELECTORS;
+}
+
+async function saveDebugHtml(html: string) {
+  await mkdir(path.dirname(DEBUG_HTML_PATH), { recursive: true });
+  await writeFile(DEBUG_HTML_PATH, html, "utf8");
 }
 
 function cleanText(value: string) {
