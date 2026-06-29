@@ -2,11 +2,13 @@ import { createHash } from "crypto";
 import { fetchNaverDataLabTrend } from "./dataAdapters/naverDataLabAdapter";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const PROMPT_VERSION = "auto-discovery-v1";
+const PROMPT_VERSION = "auto-discovery-v2-executive-meeting";
 const TASK_TYPE = "AI_AUTO_DISCOVERY";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_DAILY_LIMIT = 10;
 const DEFAULT_CACHE_TTL_HOURS = 24;
+
+type NaverTrendResult = Awaited<ReturnType<typeof fetchNaverDataLabTrend>>;
 
 type CacheRecord = {
   createdAt: number;
@@ -69,6 +71,7 @@ export type AutoDiscoveryResult = {
     cacheHitRate: number;
     estimatedCostSaved: number;
     monthlyCostSaved: number;
+    duplicateRequestsPrevented: number;
     meetingTimeMinutes: number;
     meetingFinishedTime: string;
     candidatesRemoved: number;
@@ -85,7 +88,14 @@ export type AutoDiscoveryMeetingStep = {
 
 export type AutoDiscoveryDiscussionStep = {
   department: string;
+  inputFromPrevious: string;
   message: string;
+  decision: string;
+};
+
+type OpenAiOpportunityItem = Partial<Omit<AutoDiscoveryOpportunity, "rank" | "sourceBadges" | "status">> & {
+  keyword?: string;
+  needsMoreData?: boolean;
 };
 
 const analysisCache = new Map<string, CacheRecord>();
@@ -99,11 +109,11 @@ let usage: UsageRecord = {
 };
 
 const keywordPools = {
-  season: ["냉감", "장마", "휴가룩", "출근룩", "여름", "초가을", "바캉스", "장마철", "한여름", "간절기"],
-  category: ["와이드 팬츠", "슬랙스", "반팔 니트", "셔츠 원피스", "롱스커트", "블라우스", "셋업", "밴딩 팬츠", "나시 니트", "치마바지"],
-  material: ["린넨", "시어서커", "쿨링", "레이온", "찰랑", "바스락", "스판", "코튼", "메쉬", "텐셀"],
-  body: ["체형커버", "하비커버", "복부커버", "팔뚝커버", "키작녀", "빅사이즈", "여리핏", "군살커버", "롱기장", "허리밴딩"],
-  trend: ["꾸안꾸", "올드머니", "미니멀", "오피스룩", "데일리룩", "여행룩", "하객룩", "원마일웨어", "페미닌", "모던"],
+  season: ["냉감", "장마", "휴가룩", "출근룩", "여름", "초가을", "바스락", "장마철", "한여름", "간절기"],
+  category: ["와이드 팬츠", "슬랙스", "반팔 니트", "셔츠 원피스", "롱스커트", "블라우스", "셋업", "밴딩 팬츠", "민소매 니트", "치마바지"],
+  material: ["린넨", "시어서커", "쿨링", "레이온", "찰랑", "바스락", "스판", "코튼", "메쉬", "주름방지"],
+  body: ["체형커버", "하비커버", "복부커버", "팔뚝커버", "작은키", "빅사이즈", "허리밴딩", "군살커버", "롱기장", "허리보정"],
+  trend: ["꾸안꾸", "올드머니", "미니멀", "오피스룩", "데일리룩", "여행룩", "하객룩", "엄마등원룩", "휴양지룩", "모던"],
   margin: ["고마진", "세트상품", "기본템", "재구매", "사이즈 다양", "컬러 추가", "프리미엄", "가성비", "1만원대", "2만원대"],
 };
 
@@ -115,19 +125,9 @@ export async function runAutoDiscovery({ forceRefresh = false }: { forceRefresh?
   const discoveryRunId = `${date}-${hash(`${date}:${TASK_TYPE}`).slice(0, 8)}`;
   const recentKeywords = getRecentKeywords(date);
   const generated = createDailyCandidates(date, recentKeywords);
-  const excludedRecentKeywords = generated.excludedRecentKeywords;
   const candidateKeywords = generated.candidates.slice(0, 14);
   const naverResults = await Promise.all(candidateKeywords.map((keyword) => fetchNaverDataLabTrend(keyword)));
-  const sourceDataHash = hash(
-    JSON.stringify(
-      naverResults.map((result) => ({
-        keyword: result.keyword,
-        status: result.status,
-        growthRate: result.data?.growthRate ?? null,
-        latest: result.data?.trendPoints.at(-1)?.ratio ?? null,
-      })),
-    ),
-  );
+  const sourceDataHash = hash(JSON.stringify(naverResults.map(toSourceHashSignal)));
   const keywordSetHash = hash(candidateKeywords.join("|"));
   const cacheKey = [date, TASK_TYPE, keywordSetHash, sourceDataHash, modelName, PROMPT_VERSION].join(":");
   const ttlMs = Math.max(1, Number(process.env.OPENAI_CACHE_TTL_HOURS || DEFAULT_CACHE_TTL_HOURS)) * 60 * 60 * 1000;
@@ -147,38 +147,22 @@ export async function runAutoDiscovery({ forceRefresh = false }: { forceRefresh?
     naverResults,
   });
   const top10 = buildTop10(candidateKeywords, naverResults, openAiAnalysis.items, recentKeywords);
-  const naverRisingCount = naverResults.filter((result) => (result.data?.growthRate ?? 0) > 20).length;
+  const risingCount = naverResults.filter((result) => (result.data?.growthRate ?? 0) > 20).length;
   const candidatesRemoved = Math.max(0, generated.totalGenerated - top10.length);
-  const ceoSummary = {
-    biggestOpportunity: top10[0]
-      ? `${top10[0].keyword}: ${top10[0].marketOpportunity}`
-      : "추가 데이터 필요: 오늘 후보군의 근거가 충분하지 않습니다.",
-    biggestRisk: top10.some((item) => item.status === "추가 데이터 필요")
-      ? "일부 후보는 쿠팡 시장 전체 데이터가 없어 SOURCE LIMITED 상태입니다."
-      : "경쟁 강도와 광고비는 공식 시장 데이터가 없어 계속 교차 확인이 필요합니다.",
-    firstAction: top10[0]
-      ? `${top10[0].keyword}의 썸네일 첫 화면 메시지와 상세페이지 개선 포인트를 먼저 정하세요.`
-      : "Naver DataLab과 공개 데이터 후보를 더 확보하세요.",
-    todayLesson:
-      "오늘은 검색량만큼 광고 경쟁도와 상세페이지 개선 가능성이 중요했습니다. 내일 분석에서는 광고 난이도 가중치를 더 높입니다.",
-    ceoBriefing:
-      "Executive Summary is ready. Today's Opportunity is ready. Today's First Action is ready. 대표님은 결정만 하시면 됩니다.",
-  };
-  const meetingTimeline = createMeetingTimeline({
+  const ceoSummary = createCeoSummary(top10);
+  const meetingContext = {
     generatedCount: generated.totalGenerated,
-    risingCount: naverRisingCount,
+    risingCount,
     analyzedCount: generated.totalGenerated,
     usedOpenAI: openAiAnalysis.usedOpenAI,
     topKeyword: top10[0]?.keyword || "추가 데이터 필요",
+    topMargin: top10[0]?.marginPotential || "추가 데이터 필요",
     cacheStatus: openAiAnalysis.usedOpenAI ? "Fresh Analysis" : openAiAnalysis.cacheStatus,
     candidatesRemoved,
-  });
-  const aiDiscussion = createAiDiscussion({
-    generatedCount: generated.totalGenerated,
-    candidatesRemoved,
-    topKeyword: top10[0]?.keyword || "추가 데이터 필요",
-    topMargin: top10[0]?.marginPotential || "추가 데이터 필요",
-  });
+  };
+  const meetingTimeline = createMeetingTimeline(meetingContext);
+  const aiDiscussion = createAiDiscussion(meetingContext);
+
   const result: AutoDiscoveryResult = {
     ok: true,
     discoveryRunId,
@@ -192,13 +176,13 @@ export async function runAutoDiscovery({ forceRefresh = false }: { forceRefresh?
     sourceDataHash,
     analyzedCandidateCount: generated.totalGenerated,
     newOpportunityCount: top10.filter((item) => item.status === "오늘 새 분석").length,
-    excludedRecentKeywords,
+    excludedRecentKeywords: generated.excludedRecentKeywords,
     candidates: candidateKeywords,
     top10,
     ceoSummary,
     meetingTimeline,
     aiDiscussion,
-    meetingTranscript: createMeetingTranscript(meetingTimeline),
+    meetingTranscript: createMeetingTranscript(aiDiscussion),
     lastAnalyzedAt: new Date().toISOString(),
     openAi: createUsageStats(usage, candidatesRemoved),
   };
@@ -215,7 +199,7 @@ function createDailyCandidates(date: string, recentKeywords: Set<string>) {
   const rng = seededRandom(hash(date).slice(0, 12));
   const combinations: string[] = [];
 
-  for (let index = 0; index < 80; index += 1) {
+  for (let index = 0; index < 90; index += 1) {
     const template = index % 6;
     const keyword =
       template === 0
@@ -248,7 +232,7 @@ async function analyzeCandidatesWithOpenAI({
   date: string;
   modelName: string;
   candidateKeywords: string[];
-  naverResults: Awaited<ReturnType<typeof fetchNaverDataLabTrend>>[];
+  naverResults: NaverTrendResult[];
 }) {
   if (!process.env.OPENAI_API_KEY) {
     return {
@@ -288,7 +272,7 @@ async function analyzeCandidatesWithOpenAI({
           {
             role: "system",
             content:
-              "You are VINIMINI AI Executive Team. Analyze Korean women's fashion opportunities for a CEO. Do not invent live Coupang facts. Use concise Korean. Return only JSON.",
+              "너는 VINIMINI AI Executive Analysis Engine이다. 한국 쿠팡 여성패션 CEO를 위해 후보를 분석한다. 공개적으로 추론 가능한 시장 맥락과 연결된 데이터만 사용한다. 존재하지 않는 쿠팡 상품명, 리뷰, 가격, 판매량, 순위를 만들지 않는다. 근거가 부족하면 반드시 '추가 데이터 필요' 또는 'SOURCE LIMITED'라고 쓴다. 응답은 JSON만 반환한다.",
           },
           {
             role: "user",
@@ -296,7 +280,7 @@ async function analyzeCandidatesWithOpenAI({
               task: TASK_TYPE,
               date,
               instruction:
-                "Rank candidates for Coupang women's fashion market briefing. Use public-market reasoning and Naver signals only. If evidence is weak, write 추가 데이터 필요.",
+                "후보 전체를 한 번의 배치 분석으로 평가하라. Director 회의 관점으로 시장 기회, 검색 성장 가능성, 경쟁 강도, VINIMINI 적합도, 예상 마진 가능성, 상세페이지 개선 가능성, 광고 진입 가능성, Opportunity Score를 한국어로 작성하라.",
               candidates: candidateKeywords,
               naverSignals: compactSignals,
               outputSchema:
@@ -309,11 +293,10 @@ async function analyzeCandidatesWithOpenAI({
 
     if (!response.ok) throw new Error(`OpenAI Auto Discovery failed: ${response.status}`);
     const payload = (await response.json()) as { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> };
-    const text = extractOutputText(payload);
     return {
       usedOpenAI: true,
       cacheStatus: "Fresh Analysis" as const,
-      items: parseOpenAiItems(text),
+      items: parseOpenAiItems(extractOutputText(payload)),
     };
   } catch {
     return {
@@ -324,14 +307,9 @@ async function analyzeCandidatesWithOpenAI({
   }
 }
 
-type OpenAiOpportunityItem = Partial<Omit<AutoDiscoveryOpportunity, "rank" | "sourceBadges" | "status">> & {
-  keyword?: string;
-  needsMoreData?: boolean;
-};
-
 function buildTop10(
   candidateKeywords: string[],
-  naverResults: Awaited<ReturnType<typeof fetchNaverDataLabTrend>>[],
+  naverResults: NaverTrendResult[],
   openAiItems: OpenAiOpportunityItem[],
   recentKeywords: Set<string>,
 ): AutoDiscoveryOpportunity[] {
@@ -357,24 +335,32 @@ function buildTop10(
         opportunityScore: recentKeywords.has(keyword) ? Math.max(1, opportunityScore - 15) : opportunityScore,
         marketOpportunity: openAi?.marketOpportunity || "추가 데이터 필요",
         searchGrowthPotential: openAi?.searchGrowthPotential || (growth > 20 ? "검색 성장 신호 있음" : "추가 데이터 필요"),
-        competitionStrength: openAi?.competitionStrength || "공식 쿠팡 시장 데이터 부족",
-        viniminiFit: openAi?.viniminiFit || "상세페이지/썸네일 개선 여지 확인 필요",
+        competitionStrength: openAi?.competitionStrength || "쿠팡 시장 전체 경쟁 데이터 부족",
+        viniminiFit: openAi?.viniminiFit || "상세페이지와 썸네일 개선 가능성 확인 필요",
         marginPotential: openAi?.marginPotential || "추가 데이터 필요",
-        detailPagePotential: openAi?.detailPagePotential || "상세페이지 개선 가능성 검토",
+        detailPagePotential: openAi?.detailPagePotential || "상세페이지 개선 가능성 검토 필요",
         adEntryPotential: openAi?.adEntryPotential || "광고 진입 가능성 추가 확인",
         status: recentKeywords.has(keyword) ? "최근 7일 제외" : needsMoreData ? "추가 데이터 필요" : "오늘 새 분석",
-        sourceBadges: [
-          "NAVER DATALAB",
-          openAi?.marketOpportunity ? "OPENAI COUPANG MARKET ANALYSIS" : "SOURCE LIMITED",
-          "SOURCE LIMITED",
-          "COUPANG WING OPERATIONS",
-        ],
+        sourceBadges: ["NAVER DATALAB", openAi?.marketOpportunity ? "OPENAI COUPANG MARKET ANALYSIS" : "SOURCE LIMITED", "SOURCE LIMITED", "COUPANG WING OPERATIONS"],
       } satisfies AutoDiscoveryOpportunity;
     })
     .filter((item) => item.status !== "최근 7일 제외")
     .sort((a, b) => b.opportunityScore - a.opportunityScore)
     .slice(0, 10)
     .map((item, index) => ({ ...item, rank: index + 1 }));
+}
+
+function createCeoSummary(top10: AutoDiscoveryOpportunity[]) {
+  const first = top10[0];
+  return {
+    biggestOpportunity: first ? `${first.keyword}: ${first.marketOpportunity}` : "추가 데이터 필요: 오늘 후보군의 근거가 충분하지 않습니다.",
+    biggestRisk: top10.some((item) => item.status === "추가 데이터 필요")
+      ? "일부 후보는 쿠팡 시장 전체 데이터가 없어 SOURCE LIMITED 상태입니다."
+      : "경쟁 강도와 광고비는 공식 시장 데이터가 부족해 계속 교차 확인이 필요합니다.",
+    firstAction: first ? `${first.keyword}의 썸네일 메시지와 상세페이지 첫 화면 개선안을 먼저 확정하세요.` : "네이버 데이터랩과 공개 데이터 후보를 더 확보하세요.",
+    todayLesson: "오늘 회의에서는 검색량보다 광고 난이도, 리뷰 리스크, 상세페이지 개선 가능성이 함께 중요했습니다.",
+    ceoBriefing: "Good Morning, CEO. AI 경영진이 밤사이 시장을 탐색하고 회의를 완료했습니다. 대표님은 최종 결정만 하시면 됩니다.",
+  };
 }
 
 function createMeetingTimeline({
@@ -396,60 +382,60 @@ function createMeetingTimeline({
 }): AutoDiscoveryMeetingStep[] {
   return [
     {
-      time: "🌙 00:00",
+      time: "00:00",
       department: "Market Director AI",
       title: "시장 전체 후보 탐색",
       result: `후보 ${generatedCount}개 발견`,
-      detail: `시즌, 카테고리, 소재, 체형커버, 트렌드, 마진 가능성 키워드를 조합하고 중복/최근 추천 후보 ${candidatesRemoved}개를 제거했습니다.`,
+      detail: `시즌, 카테고리, 소재, 체형커버, 트렌드, 마진 가능성 키워드를 조합하고 중복/최근 추천 후보 ${candidatesRemoved}개를 낮은 우선순위로 처리했습니다.`,
     },
     {
-      time: "🌙 00:10",
-      department: "Trend AI",
+      time: "00:10",
+      department: "Trend Director AI",
       title: "검색량 상승 키워드 분석",
-      result: `급상승 후보 ${risingCount}개 선정`,
-      detail: "Naver DataLab으로 후보 키워드의 최근 90일 검색 흐름을 교차 확인했습니다.",
+      result: `상승 후보 ${risingCount}개 확인`,
+      detail: "Market Director가 제출한 후보를 바탕으로 Naver DataLab 검색 흐름을 교차 확인했습니다.",
     },
     {
-      time: "🌙 00:20",
+      time: "00:20",
       department: "OpenAI Market Analysis",
       title: "후보 전체 Batch 분석",
-      result: usedOpenAI ? `${analyzedCount}개 후보를 한 번의 Batch 분석으로 평가` : `${analyzedCount}개 후보 SOURCE LIMITED 평가`,
-      detail: `API 비용 절감을 위해 후보를 개별 호출하지 않았습니다. Cache status: ${cacheStatus}.`,
+      result: usedOpenAI ? `${analyzedCount}개 후보를 한 번의 Batch 분석으로 평가` : `${analyzedCount}개 후보를 SOURCE LIMITED로 평가`,
+      detail: `동일 입력 반복 호출을 막고 비용을 줄였습니다. 캐시 상태: ${cacheStatus}.`,
     },
     {
-      time: "🌙 00:30",
+      time: "00:30",
       department: "Marketing Director AI",
-      title: "광고 경쟁도 평가",
+      title: "광고 경쟁과 클릭 가능성 평가",
       result: "광고 진입 가능성 분류",
-      detail: "경쟁 강도는 공식 쿠팡 시장 데이터가 없어 공개 신호와 검색 흐름 기준으로 제한 평가했습니다.",
+      detail: "Trend Director의 상승 신호와 OpenAI 분석 결과를 함께 참고했습니다.",
     },
     {
-      time: "🌙 00:40",
+      time: "00:40",
       department: "Creative Director AI",
-      title: "썸네일/상세페이지 개선 가능성 평가",
-      result: "상세페이지 개선 여지 평가",
-      detail: "첫 화면 메시지, 소재 설명, 실측 정보, 체형커버 표현 가능성을 검토했습니다.",
+      title: "썸네일과 상세페이지 개선 가능성 평가",
+      result: "크리에이티브 개선 여지 평가",
+      detail: "Marketing Director가 지적한 광고 경쟁을 보완할 수 있는 첫 화면 메시지와 썸네일 방향을 검토했습니다.",
     },
     {
-      time: "🌙 00:50",
+      time: "00:50",
       department: "Pricing Director AI",
       title: "예상 마진과 진입 난이도 계산",
       result: "마진 가능성과 진입 난이도 계산",
-      detail: "가격대와 상품 구조를 바탕으로 SOURCE LIMITED 범위 안에서 보수적으로 평가했습니다.",
+      detail: "Creative Director의 개선 가능성을 반영하되, 공식 가격/원가 데이터가 부족한 후보는 추가 데이터 필요로 표시했습니다.",
     },
     {
-      time: "🌙 01:00",
+      time: "00:55",
+      department: "Customer Insight Director AI",
+      title: "리뷰 불만과 고객 요구사항 검토",
+      result: "고객 불안 요소와 반품 리스크 확인",
+      detail: "Pricing Director가 남긴 진입 후보를 기준으로 핏, 원단, 사이즈, 비침 관련 불만 가능성을 검토했습니다.",
+    },
+    {
+      time: "01:00",
       department: "CEO Secretary AI",
-      title: "Executive Summary 생성",
-      result: `TOP10 생성 · 1순위 ${topKeyword}`,
-      detail: "Today's Biggest Opportunity, Today's Biggest Risk, Today's First Action을 CEO 브리핑으로 정리했습니다.",
-    },
-    {
-      time: "🌅 Morning",
-      department: "CEO Briefing",
-      title: "Good Morning, CEO.",
-      result: "AI Executive Team completed overnight strategy meetings.",
-      detail: "대표님은 검색하지 않습니다. AI 경영진이 먼저 탐색하고 보고합니다.",
+      title: "경영진 요약 생성",
+      result: `TOP10 생성 및 1위 후보 ${topKeyword} 보고`,
+      detail: "각 Director의 의견을 종합해 Today's Biggest Opportunity, Risk, First Action을 작성했습니다.",
     },
   ];
 }
@@ -468,33 +454,53 @@ function createAiDiscussion({
   return [
     {
       department: "Market Director AI",
-      message: `${generatedCount}개의 여성패션 후보를 찾았습니다. 최근 7일 반복 후보와 중복 후보 ${candidatesRemoved}개는 낮은 우선순위로 처리했습니다.`,
+      inputFromPrevious: "전일 추천 히스토리와 오늘 날짜 기반 seed",
+      message: `${generatedCount}개의 여성패션 후보를 찾았습니다. 최근 7일 반복 후보와 중복 후보 ${candidatesRemoved}개는 우선순위를 낮췄습니다.`,
+      decision: "새 후보 중심으로 Trend Director에게 넘깁니다.",
     },
     {
       department: "Trend Director AI",
-      message: "Naver DataLab 기준 상승 신호가 있는 후보를 우선 검토했습니다. 하락 후보는 CEO 브리핑에서 제외했습니다.",
+      inputFromPrevious: "Market Director가 정리한 신규 후보군",
+      message: "Naver DataLab 기준 상승 신호가 있는 후보를 우선 검토했습니다. 하락 후보는 CEO 브리핑에서 제외합니다.",
+      decision: "검색 흐름이 약한 후보는 SOURCE LIMITED로 표시합니다.",
     },
     {
       department: "Marketing Director AI",
-      message: "광고 경쟁이 높은 후보도 있지만, 클릭 메시지가 선명하면 진입 가능성이 있습니다.",
+      inputFromPrevious: "Trend Director의 검색 성장 판단",
+      message: "검색이 좋아도 광고 경쟁이 높으면 바로 확장하지 않습니다. 클릭 메시지가 명확한 후보만 테스트 가치가 있습니다.",
+      decision: "광고 진입은 작은 예산 테스트 중심으로 제안합니다.",
     },
     {
       department: "Creative Director AI",
-      message: "썸네일과 첫 화면 개선 가능성이 있는 후보는 검색량보다 더 높은 실행 가치를 가집니다.",
+      inputFromPrevious: "Marketing Director의 광고 경쟁 우려",
+      message: "광고 경쟁을 이기려면 썸네일 첫 인상이 중요합니다. 핏, 소재, 불만 해소가 보이는 후보를 우선합니다.",
+      decision: "상세페이지 첫 화면 개선 가능성을 TOP10 점수에 반영합니다.",
     },
     {
       department: "Pricing Director AI",
-      message: `${topKeyword}는 예상 마진 가능성이 ${topMargin}로 보입니다. 다만 공식 시장 가격 데이터가 부족한 후보는 추가 데이터 필요로 표시했습니다.`,
+      inputFromPrevious: "Creative Director의 전환 개선 가능성",
+      message: `${topKeyword}의 예상 마진 가능성은 ${topMargin}입니다. 다만 원가와 광고비가 없으면 확정 판단은 금지합니다.`,
+      decision: "마진 근거가 부족한 후보는 추가 데이터 필요로 남깁니다.",
+    },
+    {
+      department: "Customer Insight Director AI",
+      inputFromPrevious: "Pricing Director의 진입 가능 후보",
+      message: "리뷰 불만이 핏, 원단, 사이즈에 집중되는 후보는 상세페이지 개선으로 방어할 수 있습니다.",
+      decision: "리뷰 리스크가 높은 후보는 CEO 실행 제안에 보완 액션을 붙입니다.",
+    },
+    {
+      department: "Learning Director AI",
+      inputFromPrevious: "Customer Insight Director의 고객 불안 분석",
+      message: "오늘은 검색 성장률만으로 판단하지 않고 고객 불안 해소 가능성을 함께 반영해야 합니다.",
+      decision: "내일 회의에서는 리뷰 리스크와 상세페이지 개선 가능성의 가중치를 높입니다.",
     },
     {
       department: "CEO Secretary AI",
-      message: "Discussion completed. Recommendation approved. Executive Summary와 Today’s First Action을 준비했습니다.",
+      inputFromPrevious: "모든 Director의 최종 의견",
+      message: "회의를 종료합니다. AI 경영진의 합의안을 CEO Summary로 정리했습니다.",
+      decision: "대표님은 검색하지 않고 TOP10, 가장 큰 기회, 가장 큰 리스크, 첫 실행만 결정하시면 됩니다.",
     },
   ];
-}
-
-function createMeetingTranscript(timeline: AutoDiscoveryMeetingStep[]) {
-  return timeline.map((step) => `${step.time} ${step.department}: ${step.result}`);
 }
 
 function markCached(result: AutoDiscoveryResult, currentUsage: UsageRecord): AutoDiscoveryResult {
@@ -517,10 +523,15 @@ function createUsageStats(currentUsage: UsageRecord, candidatesRemoved: number) 
     cacheHitRate,
     estimatedCostSaved,
     monthlyCostSaved: Math.min(95, estimatedCostSaved + 4),
+    duplicateRequestsPrevented: currentUsage.cacheHits,
     meetingTimeMinutes: 18,
     meetingFinishedTime: "01:00",
     candidatesRemoved,
   };
+}
+
+function createMeetingTranscript(discussion: AutoDiscoveryDiscussionStep[]) {
+  return discussion.map((step) => `${step.department}: ${step.message} 결론: ${step.decision}`);
 }
 
 function rememberRecommendations(date: string, keywords: string[]) {
@@ -542,6 +553,15 @@ function getRecentKeywords(date: string) {
   return recent;
 }
 
+function toSourceHashSignal(result: NaverTrendResult) {
+  return {
+    keyword: result.keyword,
+    status: result.status,
+    growthRate: result.data?.growthRate ?? null,
+    latest: result.data?.trendPoints.at(-1)?.ratio ?? null,
+  };
+}
+
 function parseOpenAiItems(text: string): OpenAiOpportunityItem[] {
   try {
     const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
@@ -561,7 +581,7 @@ function inferCategory(keyword: string) {
   if (/팬츠|슬랙스|치마바지/.test(keyword)) return "팬츠";
   if (/원피스/.test(keyword)) return "원피스";
   if (/스커트/.test(keyword)) return "스커트";
-  if (/블라우스|셔츠|니트|티/.test(keyword)) return "상의";
+  if (/블라우스|셔츠|니트|상의/.test(keyword)) return "상의";
   if (/셋업/.test(keyword)) return "셋업";
   return "여성패션";
 }

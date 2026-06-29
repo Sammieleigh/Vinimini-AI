@@ -99,6 +99,21 @@ Implementation:
 - The UI displays cache state, Today's OpenAI Calls, Cache Hit Rate, Estimated Cost Saved, and the Midnight Strategy Room meeting timeline.
 - Opportunity Center TOP10 cards now show CEO decision fields: Opportunity Score, Entry Difficulty, Estimated Margin, Search Growth, Competition, Why Now, Recommended Action, Source Badges, and Confidence.
 
+### AI Executive Meeting v2
+
+AI Executive Meeting v2 upgrades Midnight Strategy Room from a static log into a director-to-director discussion.
+
+Implementation:
+
+- Market Director, Trend Director, Marketing Director, Creative Director, Pricing Director, Customer Insight Director, and CEO Secretary now pass context forward in sequence.
+- Each discussion step includes the previous input, the director's opinion, and the resulting decision.
+- OpenAI remains the Executive Analysis Engine, not a source of fabricated product data.
+- Auto Discovery still creates a daily `discoveryRunId`, avoids recent 7-day recommendations, and evaluates candidates in one batch.
+- OpenAI analysis cache still uses date, task type, keyword set hash, source data hash, model name, and prompt version.
+- `forceRefresh=true` is the only intentional cache bypass.
+- Finance Director keeps reporting Today's Calls, Cache Hit Rate, Estimated Cost Saved, and Monthly Cost Saved.
+- Finance Director also reports Duplicate Requests Prevented so cost optimization is visible to the CEO.
+
 ### Planning Room v1
 
 Planning Room v1 turns `/planning/[id]` into an AI product planning meeting room instead of a long report.

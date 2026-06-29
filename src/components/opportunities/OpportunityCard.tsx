@@ -17,10 +17,10 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8277]">Department Briefing</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8277]">부서 브리핑</p>
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-xl font-semibold tracking-normal">{item.productName}</h2>
-          {item.strongBuy ? <span className="rounded-full border border-[#111111] px-3 py-1 text-xs font-medium">CEO PRIORITY</span> : null}
+          {item.strongBuy ? <span className="rounded-full border border-[#111111] px-3 py-1 text-xs font-medium">적극 추천</span> : null}
           {sourceBadges.map((badge) => (
             <span
               key={`${item.id}-${badge}`}
@@ -31,31 +31,31 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
               {badge}
             </span>
           ))}
-          {item.isRocket ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">Rocket</span> : null}
-          {item.isAd ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">Ad</span> : null}
+          {item.isRocket ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">로켓</span> : null}
+          {item.isAd ? <span className="rounded-full border border-[#D9D0C4] px-3 py-1 text-xs text-[#625B53]">광고</span> : null}
         </div>
 
         <p className="mt-3 max-w-3xl text-sm leading-7 text-[#625B53]">
-          <span className="font-semibold text-[#111111]">Why Now:</span> {item.whyNow}
+          <span className="font-semibold text-[#111111]">지금 추천하는 이유:</span> {item.whyNow}
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <DecisionLine label="Search Growth" value={item.confidence.evidence[1] ?? "추가 데이터 필요"} />
-          <DecisionLine label="Competition" value={`${item.lowCompetition} · 경쟁 후보 ${item.competitorCount}개`} />
-          <DecisionLine label="Recommended Action" value={item.actionPlan[0] ?? item.recommendation} />
-          <DecisionLine label="Confidence" value={`${item.confidence.percent}% · ${item.confidence.evidence[0] ?? "근거 추가 필요"}`} />
+          <DecisionLine label="검색 성장률" value={item.confidence.evidence[1] ?? "추가 데이터 필요"} />
+          <DecisionLine label="경쟁 강도" value={`${item.lowCompetition} · 경쟁 후보 ${item.competitorCount}개`} />
+          <DecisionLine label="CEO 실행 제안" value={item.actionPlan[0] ?? item.recommendation} />
+          <DecisionLine label="신뢰도" value={`${item.confidence.percent}% · ${item.confidence.evidence[0] ?? "근거 추가 필요"}`} />
         </div>
 
-        <p className="mt-3 text-sm font-medium text-[#111111]">Executive Evidence: {item.reasons.slice(0, 3).join(" · ")}</p>
+        <p className="mt-3 text-sm font-medium text-[#111111]">경영진 근거: {item.reasons.slice(0, 3).join(" · ")}</p>
         <p className="mt-2 text-xs text-[#625B53]">
-          Reporting Department: Market Director AI · {item.sellerName ? `Seller/Brand ${item.sellerName}` : "시장 후보 분석"} · {item.category}
+          보고 부서: Market Director AI · {item.sellerName ? `판매자/브랜드 ${item.sellerName}` : "시장 후보 분석"} · {item.category}
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-sm lg:grid-cols-1">
-        <Metric label="Opportunity Score" value={`${item.opportunityScore}`} />
-        <Metric label="Entry Difficulty" value={item.entryDifficulty} />
-        <Metric label="Estimated Margin" value={item.expectedMargin} />
+        <Metric label="기회 점수" value={`${item.opportunityScore}`} />
+        <Metric label="진입 난이도" value={item.entryDifficulty} />
+        <Metric label="예상 마진" value={item.expectedMargin} />
       </div>
     </Link>
   );

@@ -4,7 +4,7 @@ const dailyBriefing = createDailyCoupangBriefing();
 
 export const dailyBriefingStatus = {
   label: dailyBriefing.dataFreshness,
-  detail: "쿠팡 파트너스, 네이버 데이터랩, 검색광고, Google Trends가 연결되기 전까지는 데모 브리핑입니다.",
+  detail: "쿠팡, 네이버 데이터랩, 네이버 검색광고, Google Trends가 완전히 연결되기 전까지는 출처 제한 브리핑입니다.",
 };
 
 export const dailyAutoBriefing = {

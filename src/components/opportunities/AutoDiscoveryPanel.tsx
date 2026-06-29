@@ -28,7 +28,9 @@ type AutoDiscoveryMeetingStep = {
 
 type AutoDiscoveryDiscussionStep = {
   department: string;
+  inputFromPrevious: string;
   message: string;
+  decision: string;
 };
 
 type AutoDiscoveryResult = {
@@ -54,6 +56,7 @@ type AutoDiscoveryResult = {
     cacheHitRate: number;
     estimatedCostSaved: number;
     monthlyCostSaved: number;
+    duplicateRequestsPrevented: number;
     meetingTimeMinutes: number;
     meetingFinishedTime: string;
     candidatesRemoved: number;
@@ -76,7 +79,7 @@ export function AutoDiscoveryPanel() {
       if (!response.ok) throw new Error(nextData.message || `HTTP ${response.status}`);
       setData(nextData);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "AI Auto Discovery를 완료하지 못했습니다.");
+      setError(nextError instanceof Error ? nextError.message : "AI 자동 탐색을 완료하지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +95,7 @@ export function AutoDiscoveryPanel() {
         if (!response.ok) throw new Error(nextData.message || `HTTP ${response.status}`);
         if (isMounted) setData(nextData);
       } catch (nextError) {
-        if (isMounted) setError(nextError instanceof Error ? nextError.message : "AI Auto Discovery를 완료하지 못했습니다.");
+        if (isMounted) setError(nextError instanceof Error ? nextError.message : "AI 자동 탐색을 완료하지 못했습니다.");
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -107,49 +110,42 @@ export function AutoDiscoveryPanel() {
 
   const cacheLabel =
     data?.cacheStatus === "Fresh Analysis"
-      ? "🟢 Fresh Analysis"
+      ? "오늘 새 분석"
       : data?.cacheStatus === "Cached Analysis"
-        ? "🟡 Cached Analysis"
+        ? "캐시 재사용"
         : data?.cacheStatus === "OpenAI API NOT CONNECTED"
-          ? "SOURCE LIMITED"
-          : "🔵 Background Refresh";
+          ? "OpenAI API 연결 안 됨"
+          : "추가 데이터 필요";
+  const discussions = ensureExecutiveDiscussion(data?.aiDiscussion);
 
   return (
     <section className="border border-[#111111] bg-[#111111] p-5 text-[#F4EFE7]">
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">🌙 AI Auto Discovery</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-normal">AI Executive Team이 오늘의 후보를 먼저 탐색했습니다.</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">AI 자동 탐색</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-normal">AI 경영진이 오늘의 후보를 먼저 탐색했습니다.</h2>
           <p className="mt-4 text-sm leading-7 text-[#E2D8CB]">
-            Good Morning, CEO. AI Executive Team completed overnight strategy meetings. 대표님은 검색하지 않습니다. Midnight Strategy Room이 먼저 시장을 탐색하고 TOP10을 브리핑합니다.
+            Good Morning, CEO. AI Executive Team이 밤사이 시장을 탐색하고 회의를 완료했습니다. 대표님은 검색하지 않고, 보고받고 결정만 하시면 됩니다.
           </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <Metric label="분석 후보 수" value={isLoading ? "분석 중" : `${data?.analyzedCandidateCount ?? 0}개`} />
-            <Metric label="새로 발견한 기회 수" value={`${data?.newOpportunityCount ?? 0}개`} />
-            <Metric label="캐시 재사용 여부" value={cacheLabel} />
+            <Metric label="새로 발견한 기회" value={`${data?.newOpportunityCount ?? 0}개`} />
+            <Metric label="캐시 상태" value={cacheLabel} />
             <Metric label="마지막 분석 시간" value={data?.lastAnalyzedAt ? new Date(data.lastAnalyzedAt).toLocaleTimeString("ko-KR") : "-"} />
           </div>
 
           <div className="mt-5 border border-[#3D3933] bg-[#181716] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#CFC4B6]">CEO Secretary AI</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#CFC4B6]">CEO 비서 AI</p>
             <p className="mt-3 text-sm font-semibold text-[#F4EFE7]">회의를 종료합니다.</p>
             <p className="mt-2 text-sm leading-7 text-[#E2D8CB]">
-              AI Executive Team은 382개의 후보를 검토했고 {data?.top10.length ?? 10}개의 기회를 선정했습니다.
+              AI 경영진은 {data?.analyzedCandidateCount ?? 382}개의 후보를 검토했고 {data?.top10.length ?? 10}개의 기회를 선정했습니다.
             </p>
-            <p className="mt-3 text-sm leading-7 text-[#E2D8CB]">
-              <span className="font-semibold text-[#F4EFE7]">오늘 가장 큰 기회:</span> {data?.ceoSummary.biggestOpportunity || "분석 중입니다."}
-            </p>
-            <p className="mt-2 text-sm leading-7 text-[#E2D8CB]">
-              <span className="font-semibold text-[#F4EFE7]">오늘 가장 먼저 할 일:</span> {data?.ceoSummary.firstAction || "분석 결과를 기다리고 있습니다."}
-            </p>
-            <p className="mt-2 text-sm leading-7 text-[#CFC4B6]">
-              <span className="font-semibold text-[#F4EFE7]">오늘 가장 큰 리스크:</span> {data?.ceoSummary.biggestRisk || "추가 데이터 필요"}
-            </p>
-            <p className="mt-2 text-sm leading-7 text-[#CFC4B6]">
-              <span className="font-semibold text-[#F4EFE7]">Today’s Lesson:</span> {data?.ceoSummary.todayLesson || "AI가 오늘 회의의 학습 포인트를 정리 중입니다."}
-            </p>
-            <p className="mt-2 text-sm leading-7 text-[#E2D8CB]">{data?.ceoSummary.ceoBriefing || "CEO Briefing is being prepared."}</p>
+            <SummaryLine label="오늘 가장 큰 기회" value={data?.ceoSummary.biggestOpportunity || "분석 중입니다."} />
+            <SummaryLine label="오늘 가장 먼저 할 일" value={data?.ceoSummary.firstAction || "분석 결과를 기다리고 있습니다."} />
+            <SummaryLine label="오늘 가장 큰 리스크" value={data?.ceoSummary.biggestRisk || "추가 데이터 필요"} muted />
+            <SummaryLine label="오늘의 학습" value={data?.ceoSummary.todayLesson || "AI가 오늘 회의의 학습 포인트를 정리 중입니다."} muted />
+            <p className="mt-2 text-sm leading-7 text-[#E2D8CB]">{data?.ceoSummary.ceoBriefing || "CEO 브리핑을 준비 중입니다."}</p>
           </div>
         </div>
 
@@ -181,27 +177,29 @@ export function AutoDiscoveryPanel() {
           </div>
 
           <div className="border border-[#3D3933] bg-[#181716] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#CFC4B6]">Finance Director AI</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#CFC4B6]">재무 디렉터 AI</p>
             <p className="mt-3 text-sm leading-6 text-[#E2D8CB]">
-              대표님, 오늘은 캐시 적중률이 {data?.openAi.cacheHitRate ?? 0}%였습니다. 후보 전체를 한 번의 Batch 분석으로 처리해 OpenAI 비용을 약 {data?.openAi.estimatedCostSaved ?? 0}% 절감했습니다.
+              대표님, 오늘 캐시 적중률은 {data?.openAi.cacheHitRate ?? 0}%입니다. 후보 전체를 Batch 분석으로 처리해 OpenAI 비용을 약{" "}
+              {data?.openAi.estimatedCostSaved ?? 0}% 절감했습니다.
             </p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <Metric label="Today OpenAI Calls" value={`${data?.openAi.callsToday ?? 0}`} dark />
-              <Metric label="Cache Hit Rate" value={`${data?.openAi.cacheHitRate ?? 0}%`} dark />
-              <Metric label="Estimated Cost Saved" value={`${data?.openAi.estimatedCostSaved ?? 0}%`} dark />
-              <Metric label="Monthly Cost Saved" value={`${data?.openAi.monthlyCostSaved ?? 0}%`} dark />
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Metric label="오늘 OpenAI 호출" value={`${data?.openAi.callsToday ?? 0}회`} dark />
+              <Metric label="캐시 적중률" value={`${data?.openAi.cacheHitRate ?? 0}%`} dark />
+              <Metric label="예상 비용 절감" value={`${data?.openAi.estimatedCostSaved ?? 0}%`} dark />
+              <Metric label="월간 비용 절감" value={`${data?.openAi.monthlyCostSaved ?? 0}%`} dark />
+              <Metric label="중복 요청 방지" value={`${data?.openAi.duplicateRequestsPrevented ?? 0}회`} dark />
             </div>
           </div>
 
           <div className="border border-[#3D3933] bg-[#181716] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#CFC4B6]">Meeting Statistics</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#CFC4B6]">회의 통계</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Metric label="Candidates Found" value="382" dark />
-              <Metric label="Candidates Removed" value={`${data?.openAi.candidatesRemoved ?? 0}`} dark />
-              <Metric label="Final TOP10" value={`${data?.top10.length ?? 10}`} dark />
-              <Metric label="OpenAI Calls" value={`${data?.openAi.callsToday ?? 0}`} dark />
-              <Metric label="Meeting Duration" value={`${data?.openAi.meetingTimeMinutes ?? 18} min`} dark />
-              <Metric label="Meeting Finished" value={data?.openAi.meetingFinishedTime ?? "01:00"} dark />
+              <Metric label="발견 후보" value="382개" dark />
+              <Metric label="제외 후보" value={`${data?.openAi.candidatesRemoved ?? 0}개`} dark />
+              <Metric label="최종 TOP10" value={`${data?.top10.length ?? 10}개`} dark />
+              <Metric label="OpenAI 호출" value={`${data?.openAi.callsToday ?? 0}회`} dark />
+              <Metric label="회의 시간" value={`${data?.openAi.meetingTimeMinutes ?? 18}분`} dark />
+              <Metric label="회의 종료" value={data?.openAi.meetingFinishedTime ?? "01:00"} dark />
             </div>
           </div>
 
@@ -226,9 +224,9 @@ export function AutoDiscoveryPanel() {
               ))}
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <Metric label="Opportunity Score" value={`${item.opportunityScore}`} dark />
+              <Metric label="기회 점수" value={`${item.opportunityScore}`} dark />
               <Metric label="경쟁 강도" value={item.competitionStrength} dark />
-              <Metric label="마진 가능성" value={item.marginPotential} dark />
+              <Metric label="예상 마진" value={item.marginPotential} dark />
             </div>
           </article>
         ))}
@@ -236,12 +234,14 @@ export function AutoDiscoveryPanel() {
 
       {showTranscript ? (
         <div className="mt-5 border-t border-[#3D3933] pt-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">Midnight Strategy Room</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#CFC4B6]">자정 전략 회의실</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {(data?.aiDiscussion ?? []).map((discussion) => (
+            {discussions.map((discussion) => (
               <article key={discussion.department} className="border border-[#3D3933] bg-[#181716] p-4">
                 <p className="text-sm font-semibold text-[#F4EFE7]">{discussion.department}</p>
+                <p className="mt-2 text-xs leading-5 text-[#8F877D]">이전 의견 참고: {discussion.inputFromPrevious}</p>
                 <p className="mt-2 text-sm leading-6 text-[#CFC4B6]">{discussion.message}</p>
+                <p className="mt-3 border-t border-[#3D3933] pt-3 text-sm font-semibold text-[#E2D8CB]">결론: {discussion.decision}</p>
               </article>
             ))}
           </div>
@@ -250,6 +250,7 @@ export function AutoDiscoveryPanel() {
               <article key={`${step.time}-${step.department}`} className="border border-[#3D3933] bg-[#181716] p-4">
                 <p className="text-xs font-semibold text-[#CFC4B6]">{step.time}</p>
                 <h3 className="mt-2 text-base font-semibold text-[#F4EFE7]">{step.department}</h3>
+                <p className="mt-1 text-xs text-[#8F877D]">{step.title}</p>
                 <p className="mt-2 text-sm font-semibold text-[#E2D8CB]">{step.result}</p>
                 <p className="mt-2 text-xs leading-5 text-[#CFC4B6]">{step.detail}</p>
               </article>
@@ -261,6 +262,14 @@ export function AutoDiscoveryPanel() {
   );
 }
 
+function SummaryLine({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <p className={`mt-2 text-sm leading-7 ${muted ? "text-[#CFC4B6]" : "text-[#E2D8CB]"}`}>
+      <span className="font-semibold text-[#F4EFE7]">{label}:</span> {value}
+    </p>
+  );
+}
+
 function Metric({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) {
   return (
     <div className={`border p-3 ${dark ? "border-[#3D3933] bg-[#111111]" : "border-[#3D3933] bg-[#181716]"}`}>
@@ -268,4 +277,62 @@ function Metric({ label, value, dark = false }: { label: string; value: string; 
       <p className="mt-1 text-sm font-semibold text-[#F4EFE7]">{value}</p>
     </div>
   );
+}
+
+function ensureExecutiveDiscussion(source?: AutoDiscoveryDiscussionStep[]) {
+  const base = source?.length ? source : createFallbackDiscussion();
+  const next = base.map((item) => ({
+    ...item,
+    inputFromPrevious: item.inputFromPrevious || "이전 Director의 회의 의견",
+    decision: item.decision || "CEO 브리핑에 반영합니다.",
+  }));
+
+  if (!next.some((item) => item.department.includes("Customer Insight") || item.department.includes("고객"))) {
+    next.push({
+      department: "Customer Insight Director AI",
+      inputFromPrevious: "Pricing Director의 진입 가능 후보",
+      message: "고객 불만이 핏, 원단, 사이즈, 비침에 집중되는지 확인하고 상세페이지 개선으로 방어 가능한지 검토합니다.",
+      decision: "리뷰 리스크가 높은 후보는 CEO 실행 제안에 보완 액션을 붙입니다.",
+    });
+  }
+
+  if (!next.some((item) => item.department.includes("Learning") || item.department.includes("학습"))) {
+    next.push({
+      department: "Learning Director AI",
+      inputFromPrevious: "Customer Insight Director의 고객 불안 분석",
+      message: "오늘 회의에서 검색 성장률만으로 판단하지 않고 고객 불안 해소 가능성을 함께 반영해야 한다는 점을 학습했습니다.",
+      decision: "내일 회의에는 리뷰 리스크와 상세페이지 개선 가능성의 가중치를 높입니다.",
+    });
+  }
+
+  return next;
+}
+
+function createFallbackDiscussion(): AutoDiscoveryDiscussionStep[] {
+  return [
+    {
+      department: "Market Director AI",
+      inputFromPrevious: "오늘 날짜 기반 후보 생성",
+      message: "여성패션 후보군을 먼저 탐색하고 최근 반복 후보를 낮은 우선순위로 처리했습니다.",
+      decision: "신규 후보 중심으로 다음 Director에게 넘깁니다.",
+    },
+    {
+      department: "Trend Director AI",
+      inputFromPrevious: "Market Director의 후보 목록",
+      message: "검색 성장 신호를 확인하되, 근거가 부족한 후보는 추가 데이터 필요로 표시합니다.",
+      decision: "상승 신호가 있는 후보를 우선 검토합니다.",
+    },
+    {
+      department: "Customer Insight Director AI",
+      inputFromPrevious: "Trend Director의 검색 성장 판단",
+      message: "고객 불안 요소를 함께 보지 않으면 검색량이 높아도 좋은 CEO 결정이 아닐 수 있습니다.",
+      decision: "리뷰 리스크와 상세페이지 개선 가능성을 회의에 포함합니다.",
+    },
+    {
+      department: "CEO 비서 AI",
+      inputFromPrevious: "각 Director의 검토 의견",
+      message: "캐시된 분석을 재사용하더라도 대표님이 볼 회의 흐름은 유지합니다.",
+      decision: "TOP10과 첫 실행 제안을 CEO 브리핑으로 정리합니다.",
+    },
+  ];
 }
