@@ -29,8 +29,8 @@ export function BriefBox({ title, text }: { title: string; text: string }) {
 export function SourceLimitedNotice() {
   return (
     <div className="border border-[#111111] bg-[#111111] p-4 text-sm leading-6 text-[#F4EFE7]">
-      출처 제한: OpenAI는 연결된 근거를 분석, 점수화, 요약, 추천할 수 있습니다. 하지만 존재하지 않는 쿠팡 상품 정보, 리뷰 수, 가격,
-      판매량, 실시간 랭킹을 만들어내면 안 됩니다. 실행 전 검증된 추가 데이터가 필요합니다.
+      SOURCE LIMITED: OpenAI는 공개 웹과 연결된 근거를 분석할 수 있지만, 확인되지 않은 쿠팡 상품명, 가격, 리뷰 수, 평점,
+      판매량, 순위를 사실처럼 만들지 않습니다. 검증되지 않은 항목은 추가 데이터 필요로 표시합니다.
     </div>
   );
 }

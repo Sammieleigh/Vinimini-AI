@@ -5,7 +5,7 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
   const sourceBadges =
     item.dataSource === "coupang"
       ? ["COUPANG WING OPERATIONS", "SOURCE LIMITED"]
-      : ["NAVER DATALAB", "OPENAI MARKET ANALYSIS", "SOURCE LIMITED"];
+      : ["NAVER DATALAB", "OPENAI MARKET RESEARCH READY", "SOURCE LIMITED"];
 
   return (
     <Link
@@ -48,7 +48,7 @@ export function OpportunityCard({ item, index }: { item: CoupangOpportunity; ind
 
         <p className="mt-3 text-sm font-medium text-[#111111]">경영진 근거: {item.reasons.slice(0, 3).join(" · ")}</p>
         <p className="mt-2 text-xs text-[#625B53]">
-          보고 부서: Market Director AI · {item.sellerName ? `판매자/브랜드 ${item.sellerName}` : "시장 후보 분석"} · {item.category}
+          Planning Room에서 OpenAI Executive Market Research Engine이 공개 웹 기반 경쟁상품 리서치를 실행합니다.
         </p>
       </div>
 

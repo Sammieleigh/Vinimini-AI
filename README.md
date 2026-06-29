@@ -132,6 +132,21 @@ Implementation:
 - Opportunity cards separate VERIFIED INFORMATION from AI ANALYSIS so confirmed Naver data and OpenAI reasoning are not mixed.
 - OpenAI remains the Executive Analysis Engine. It analyzes connected source data in batch and must not invent Coupang products, reviews, prices, rankings, or sales volume.
 
+### Sprint 9 OpenAI Market Research Engine
+
+OpenAI Executive Market Research Engine connects public-web research to Planning Room while keeping cost controls and evidence boundaries.
+
+Implementation:
+
+- `/api/openai/market-research` runs OpenAI public-web market research for a keyword and optional product URL.
+- Cache keys include Korean date, keyword hash, URL hash, source hash, model, and prompt version.
+- Default cache TTL is 24 hours and `forceRefresh=true` is the only intentional cache bypass.
+- OpenAI daily limit remains controlled by `OPENAI_DAILY_LIMIT`.
+- Planning Room competitor analysis fetches market research once, then reuses cache unless the CEO requests a fresh research run.
+- Competitor fields include product name, price, review count, rating, product URL, thumbnail URL, selling points, competition strength, review barrier, and detail-page hints.
+- Verified values are labeled `VERIFIED INFORMATION`, AI interpretation is labeled `AI ANALYSIS`, and uncertain fields remain `SOURCE LIMITED` or "More data required."
+- Opportunity Center cards now indicate that OpenAI market research is available in Planning Room instead of triggering repeated calls from every card.
+
 ### Planning Room v1
 
 Planning Room v1 turns `/planning/[id]` into an AI product planning meeting room instead of a long report.
