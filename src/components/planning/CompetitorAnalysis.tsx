@@ -39,6 +39,8 @@ type MarketResearchResult = {
   sourceBadges: string[];
   competitors: MarketResearchCompetitor[];
   excludedCompetitors: MarketResearchCompetitor[];
+  searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number }>;
+  selectedCount: number;
   aiAnalysis: {
     competitionStrength: string;
     pricePosition: string;
@@ -307,6 +309,37 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
           </div>
         </div>
       </section>
+
+      <details className="border border-[#D9D0C4] bg-white p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-[#625B53]">디버그 검색 로그</summary>
+        <div className="mt-4 grid gap-4 text-sm text-[#625B53]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">검색 단계</p>
+            <div className="mt-2 grid gap-1">
+              {(research?.searchLogs?.length ? research.searchLogs : [{ keyword: "검색 준비 중", searchUrl: "", resultCount: 0, selectedCount: 0 }]).map((log, index) => (
+                <div key={`${log.keyword}-${log.selectedCount}`} className="border border-[#E5DED5] bg-[#FBFAF7] p-3">
+                  <p className="font-semibold">
+                    {index + 1}. {log.keyword}
+                  </p>
+                  {log.searchUrl ? (
+                    <a href={log.searchUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-xs underline underline-offset-4">
+                      {log.searchUrl}
+                    </a>
+                  ) : null}
+                  <p className="mt-1">
+                    결과: {log.resultCount}개 <span className="text-[#8A8277]">(누적 선택 {log.selectedCount}개)</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">최종 선택</p>
+            <p className="mt-2 font-semibold">{(research?.selectedCount ?? competitors.length) >= 5 ? "종료" : "키워드 확장 중"}</p>
+            <p className="mt-1">Selected: Top {research?.selectedCount ?? competitors.length}</p>
+          </div>
+        </div>
+      </details>
 
       <SourceLimitedNotice />
     </div>

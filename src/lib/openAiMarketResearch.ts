@@ -1,9 +1,11 @@
 import { createHash } from "crypto";
+import { fetchCoupangSearch } from "./coupang";
 import { fetchCoupangPartnersProducts } from "./dataAdapters/coupangPartnersAdapter";
 import type { PartnerProduct } from "./dataAdapters/types";
+import type { CoupangSearchProduct } from "./types";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const PROMPT_VERSION = "market-research-v6-relevance-scored-coupang";
+const PROMPT_VERSION = "market-research-v8-openai-coupang-url-research";
 const TASK_TYPE = "OPENAI_EXECUTIVE_MARKET_RESEARCH";
 const COUPANG_ADS_TRENDS_URL = "https://ads.coupang.com/trends";
 const DEFAULT_MODEL = "gpt-4.1-mini";
@@ -49,6 +51,8 @@ export type MarketResearchResult = {
   sourceBadges: Array<"VERIFIED INFORMATION" | "PARTIAL DATA" | "AI ANALYSIS" | "SOURCE LIMITED" | "MORE DATA REQUIRED" | "OPENAI MARKET RESEARCH" | "COUPANG PUBLIC WEB" | "COUPANG ADS TREND INSIGHTS">;
   competitors: MarketResearchCompetitor[];
   excludedCompetitors: MarketResearchCompetitor[];
+  searchLogs: Array<{ keyword: string; searchUrl: string; resultCount: number; selectedCount: number }>;
+  selectedCount: number;
   aiAnalysis: {
     competitionStrength: string;
     pricePosition: string;
@@ -111,7 +115,7 @@ export async function runOpenAiMarketResearch({
   const date = getKoreanDateKey();
   resetUsageIfNeeded(date);
 
-  const normalizedKeyword = keyword.trim() || "쿠팡 여성패션";
+  const normalizedKeyword = mapRouteSlugToKoreanKeyword(keyword.trim() || "쿠팡 여성패션");
   const normalizedUrl = url.trim();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const categoryProfile = createCategoryProfile(normalizedKeyword);
@@ -123,6 +127,7 @@ export async function runOpenAiMarketResearch({
       primarySource: "coupang-public-web",
       officialCoupangApiStatus: officialCoupangSearch.status,
       officialCoupangSearchKeywords: officialCoupangSearch.triedKeywords,
+      officialCoupangSearchLogs: officialCoupangSearch.searchLogs,
       officialCoupangProducts: rankedOfficialCoupangCompetitors.competitors.map((item) => ({
         productName: item.productName,
         price: item.price,
@@ -155,6 +160,7 @@ export async function runOpenAiMarketResearch({
       categoryProfile,
       cacheStatus: "OPENAI API NOT CONNECTED",
       competitors: rankedOfficialCoupangCompetitors.competitors,
+      searchLogs: officialCoupangSearch.searchLogs,
       message: "OPENAI_API_KEY가 없어 쿠팡 중심 공개 웹 리서치를 실행하지 않았습니다.",
     });
   }
@@ -170,6 +176,7 @@ export async function runOpenAiMarketResearch({
       categoryProfile,
       cacheStatus: "Analysis Limited",
       competitors: rankedOfficialCoupangCompetitors.competitors,
+      searchLogs: officialCoupangSearch.searchLogs,
       message: `OpenAI daily limit reached. 오늘 허용된 ${dailyLimit}회 호출을 모두 사용했습니다.`,
     });
   }
@@ -199,6 +206,12 @@ export async function runOpenAiMarketResearch({
               keyword: normalizedKeyword,
               targetUrl: normalizedUrl || "not provided",
               categoryProfile,
+              minimumCompetitorGoal: 5,
+              exactCoupangSearchUrls: officialCoupangSearch.searchLogs.map((log) => ({
+                keyword: log.keyword,
+                searchUrl: log.searchUrl,
+                collectedByApiAndHtmlParser: log.selectedCount,
+              })),
               verifiedOfficialCoupangProducts: verifiedCoupangCompetitors.map((item) => ({
                 productName: item.productName,
                 price: item.price,
@@ -219,6 +232,9 @@ export async function runOpenAiMarketResearch({
                 `Products containing these terms are hard-excluded and must not be used as competitors or excluded candidates: ${categoryProfile.excludedTerms.join(", ") || "none"}`,
                 "For wide-slacks research, only pants/slacks/trouser-family products are allowed. Never return shoes, dresses, tops, sleeveless tops, leggings, underwear, bags, or hats.",
                 "Do not discard publicly verified same-category Coupang products. Return them with relevanceScore and relevanceReason so the server can place low relevance but same-family items in excluded candidates.",
+                "If official API and HTML Parser data is insufficient, use public web research to add same-category Coupang competitors only when productName and at least one evidence field such as productUrl, price, reviewCount, or rating is available.",
+                "When official API and HTML Parser return fewer than 5 competitors, inspect the provided exact Coupang search URLs and public Coupang-related web results, then return up to 10 same-category competitors with public evidence.",
+                "OpenAI-discovered competitors may be included in the final list when they include public evidence. Missing fields must remain SOURCE LIMITED or MORE DATA REQUIRED.",
                 "Verified product fields must come from public evidence. AI interpretation must stay in aiAnalysis.",
                 "Every analysis sentence shown to the CEO must be Korean only.",
               ],
@@ -267,6 +283,8 @@ export async function runOpenAiMarketResearch({
       sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData }),
       competitors,
       excludedCompetitors: ranked.excludedCompetitors,
+      searchLogs: officialCoupangSearch.searchLogs,
+      selectedCount: competitors.length,
       aiAnalysis,
       finance: createFinanceStats(),
       message: hasVerified
@@ -287,6 +305,7 @@ export async function runOpenAiMarketResearch({
       categoryProfile,
       cacheStatus: "Analysis Limited",
       competitors: rankedOfficialCoupangCompetitors.competitors,
+      searchLogs: officialCoupangSearch.searchLogs,
       message: `OpenAI 쿠팡 중심 공개 웹 리서치에 실패했습니다. ${WIDE_SLACKS_EMPTY_MESSAGE} ${error instanceof Error ? error.message : ""}`.trim(),
     });
   }
@@ -294,7 +313,7 @@ export async function runOpenAiMarketResearch({
 
 function parseMarketResearch(text: string, categoryProfile: CategoryProfile): Pick<MarketResearchResult, "competitors" | "aiAnalysis"> {
   try {
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+    const cleaned = extractJsonObjectText(text);
     const parsed = JSON.parse(cleaned) as OpenAiMarketResearchPayload;
     const competitors = sanitizeCompetitors(parsed.competitors ?? [], categoryProfile);
     return {
@@ -306,9 +325,18 @@ function parseMarketResearch(text: string, categoryProfile: CategoryProfile): Pi
   }
 }
 
+function extractJsonObjectText(text: string) {
+  const cleaned = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+  const first = cleaned.indexOf("{");
+  const last = cleaned.lastIndexOf("}");
+  if (first >= 0 && last > first) return cleaned.slice(first, last + 1);
+  return cleaned;
+}
+
 function sanitizeCompetitors(items: Array<Partial<MarketResearchCompetitor>>, categoryProfile: CategoryProfile): MarketResearchCompetitor[] {
   const seen = new Set<string>();
   return items
+    .filter(hasCandidateEvidence)
     .filter((item) => {
       const key = normalizeText(item.productName || "");
       if (!key || seen.has(key)) return false;
@@ -338,6 +366,10 @@ function sanitizeCompetitors(items: Array<Partial<MarketResearchCompetitor>>, ca
       relevanceReason: sanitizeKoreanText(item.relevanceReason, createRelevanceReason(item.productName || "", categoryProfile)),
       evidenceStatus: inferEvidenceStatus(item),
     }));
+}
+
+function hasCandidateEvidence(item: Partial<MarketResearchCompetitor>) {
+  return hasUsableValue(item.productName) && (hasUsableValue(item.productUrl) || hasUsableValue(item.price) || hasUsableValue(item.reviewCount) || hasUsableValue(item.rating));
 }
 
 function mapPartnerProductsToCompetitors(products: PartnerProduct[], categoryProfile: CategoryProfile): MarketResearchCompetitor[] {
@@ -373,6 +405,7 @@ function mapPartnerProductsToCompetitors(products: PartnerProduct[], categoryPro
 
 async function fetchOfficialCoupangCompetitors(categoryProfile: CategoryProfile) {
   const triedKeywords: string[] = [];
+  const searchLogs: MarketResearchResult["searchLogs"] = [];
   const competitors: MarketResearchCompetitor[] = [];
   let status = "API NOT CONNECTED";
 
@@ -381,30 +414,132 @@ async function fetchOfficialCoupangCompetitors(categoryProfile: CategoryProfile)
     const result = await fetchCoupangPartnersProducts(keyword);
     status = result.status;
     const mapped = mapPartnerProductsToCompetitors(result.data, categoryProfile);
-    const ranked = rankCompetitors(mapped, categoryProfile);
+    let ranked = rankCompetitors(mapped, categoryProfile);
+
+    if (ranked.competitors.length === 0 || mergeCompetitors([], [...competitors, ...ranked.competitors]).length < 5) {
+      try {
+        const publicProducts = await fetchCoupangSearch(keyword);
+        const publicMapped = mapPublicSearchProductsToCompetitors(publicProducts, categoryProfile);
+        ranked = rankCompetitors(mergeCompetitors(ranked.competitors, publicMapped), categoryProfile);
+        status = publicMapped.length ? "LIVE DATA" : status;
+      } catch {
+        // Public Coupang search can be blocked; keep official adapter result and continue keyword expansion.
+      }
+    }
+
     competitors.push(...ranked.competitors);
-    if (competitors.length >= 5) break;
+    const selectedCount = mergeCompetitors([], competitors).length;
+    searchLogs.push({ keyword, searchUrl: createCoupangSearchUrl(keyword), resultCount: ranked.competitors.length, selectedCount });
+    if (selectedCount >= 5) break;
   }
 
   return {
     status,
     triedKeywords,
+    searchLogs,
     competitors: mergeCompetitors([], competitors),
   };
 }
 
+function mapPublicSearchProductsToCompetitors(products: CoupangSearchProduct[], categoryProfile: CategoryProfile): MarketResearchCompetitor[] {
+  return products
+    .slice(0, 12)
+    .map((product) => ({
+      productName: product.productName || MORE_DATA_REQUIRED_KO,
+      price: product.price || SOURCE_LIMITED_KO,
+      reviewCount: product.reviewCount || SOURCE_LIMITED_KO,
+      rating: product.rating || SOURCE_LIMITED_KO,
+      seller: product.sellerName || SOURCE_LIMITED_KO,
+      shippingInfo: product.isRocket ? "로켓배송" : product.isRocketGrowth ? "로켓그로스" : SOURCE_LIMITED_KO,
+      rocketDelivery: product.isRocket ? "로켓배송" : product.isRocketGrowth ? "로켓그로스" : SOURCE_LIMITED_KO,
+      productUrl: product.productUrl || "",
+      thumbnailUrl: product.thumbnail || "",
+      sellingPoints: sanitizeKoreanList([product.category, product.recommendation].filter(Boolean), ["쿠팡 공개 검색에서 확인된 상품입니다."]),
+      thumbnailFeatures: product.thumbnail ? ["대표 이미지가 확인되었습니다."] : [SOURCE_LIMITED_KO],
+      firstScreenFeatures: [MORE_DATA_REQUIRED_KO],
+      detailPageFeatures: [MORE_DATA_REQUIRED_KO],
+      repeatedReviewPros: [SOURCE_LIMITED_KO],
+      repeatedReviewCons: [SOURCE_LIMITED_KO],
+      differentiationHints: ["가격, 리뷰 장벽, 썸네일 구도를 비교해 차별화하세요."],
+      whyItSells: "쿠팡 공개 검색에서 동일 카테고리 후보로 확인되었습니다.",
+      relevanceScore: calculateRelevanceScore(product.productName, categoryProfile),
+      relevanceReason: createRelevanceReason(product.productName, categoryProfile),
+      evidenceStatus: inferEvidenceStatus({
+        productName: product.productName,
+        price: product.price,
+        reviewCount: product.reviewCount,
+        rating: product.rating,
+        productUrl: product.productUrl,
+      }),
+    }));
+}
+
 function mergeCompetitors(primary: MarketResearchCompetitor[], secondary: MarketResearchCompetitor[]) {
-  const seen = new Set<string>();
-  const merged: MarketResearchCompetitor[] = [];
+  const seen = new Map<string, MarketResearchCompetitor>();
+  const order: string[] = [];
 
   for (const item of [...primary, ...secondary]) {
     const key = normalizeText(item.productUrl || item.productName);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    merged.push(item);
+    if (!key) continue;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, item);
+      order.push(key);
+      continue;
+    }
+    seen.set(key, mergeCompetitorRecord(existing, item));
   }
 
-  return merged.slice(0, 30);
+  return order.map((key) => seen.get(key)).filter((item): item is MarketResearchCompetitor => Boolean(item)).slice(0, 30);
+}
+
+function chooseValue(current: string, next: string) {
+  return hasUsableValue(current) ? current : next;
+}
+
+function mergeTextList(current: string[], next: string[]) {
+  const merged = [...current, ...next].filter(hasUsableValue);
+  return Array.from(new Set(merged)).slice(0, 5);
+}
+
+function compareEvidence(a: MarketResearchCompetitor["evidenceStatus"], b: MarketResearchCompetitor["evidenceStatus"]) {
+  const rank = {
+    "SOURCE LIMITED": 0,
+    "PARTIAL DATA": 1,
+    "VERIFIED INFORMATION": 2,
+  } satisfies Record<MarketResearchCompetitor["evidenceStatus"], number>;
+  return rank[a] - rank[b];
+}
+
+function mergeCompetitorRecord(existing: MarketResearchCompetitor, incoming: MarketResearchCompetitor): MarketResearchCompetitor {
+  const betterEvidence = compareEvidence(incoming.evidenceStatus, existing.evidenceStatus) > 0 ? incoming.evidenceStatus : existing.evidenceStatus;
+  return {
+    ...existing,
+    productName: chooseValue(existing.productName, incoming.productName),
+    price: chooseValue(existing.price, incoming.price),
+    reviewCount: chooseValue(existing.reviewCount, incoming.reviewCount),
+    rating: chooseValue(existing.rating, incoming.rating),
+    seller: chooseValue(existing.seller, incoming.seller),
+    shippingInfo: chooseValue(existing.shippingInfo, incoming.shippingInfo),
+    rocketDelivery: chooseValue(existing.rocketDelivery, incoming.rocketDelivery),
+    productUrl: chooseValue(existing.productUrl, incoming.productUrl),
+    thumbnailUrl: chooseValue(existing.thumbnailUrl, incoming.thumbnailUrl),
+    sellingPoints: mergeTextList(existing.sellingPoints, incoming.sellingPoints),
+    thumbnailFeatures: mergeTextList(existing.thumbnailFeatures, incoming.thumbnailFeatures),
+    firstScreenFeatures: mergeTextList(existing.firstScreenFeatures, incoming.firstScreenFeatures),
+    detailPageFeatures: mergeTextList(existing.detailPageFeatures, incoming.detailPageFeatures),
+    repeatedReviewPros: mergeTextList(existing.repeatedReviewPros, incoming.repeatedReviewPros),
+    repeatedReviewCons: mergeTextList(existing.repeatedReviewCons, incoming.repeatedReviewCons),
+    differentiationHints: mergeTextList(existing.differentiationHints, incoming.differentiationHints),
+    whyItSells: chooseValue(existing.whyItSells, incoming.whyItSells),
+    relevanceScore: Math.max(existing.relevanceScore, incoming.relevanceScore),
+    relevanceReason: chooseValue(existing.relevanceReason, incoming.relevanceReason),
+    evidenceStatus: betterEvidence,
+  };
+}
+
+function createCoupangSearchUrl(keyword: string) {
+  return `https://www.coupang.com/np/search?q=${keyword.trim().split(/\s+/).join("+")}`;
 }
 
 function rankCompetitors(items: MarketResearchCompetitor[], categoryProfile: CategoryProfile) {
@@ -430,10 +565,12 @@ function sanitizeAnalysis(aiAnalysis: OpenAiMarketResearchPayload["aiAnalysis"],
   };
 }
 
-function createEmptyResearch(categoryProfile?: CategoryProfile): Pick<MarketResearchResult, "competitors" | "excludedCompetitors" | "aiAnalysis"> {
+function createEmptyResearch(categoryProfile?: CategoryProfile): Pick<MarketResearchResult, "competitors" | "excludedCompetitors" | "searchLogs" | "selectedCount" | "aiAnalysis"> {
   return {
     competitors: [],
     excludedCompetitors: [],
+    searchLogs: [],
+    selectedCount: 0,
     aiAnalysis: {
       competitionStrength: MORE_DATA_REQUIRED_KO,
       pricePosition: SOURCE_LIMITED_KO,
@@ -458,6 +595,7 @@ function createLimitedResult({
   cacheStatus,
   message,
   competitors = [],
+  searchLogs = [],
 }: {
   keyword: string;
   url: string;
@@ -468,6 +606,7 @@ function createLimitedResult({
   cacheStatus: MarketResearchResult["cacheStatus"];
   message: string;
   competitors?: MarketResearchCompetitor[];
+  searchLogs?: MarketResearchResult["searchLogs"];
 }): MarketResearchResult {
   const empty = createEmptyResearch(categoryProfile);
   const hasVerified = competitors.some((item) => item.evidenceStatus === "VERIFIED INFORMATION");
@@ -486,6 +625,8 @@ function createLimitedResult({
     sourceBadges: createSourceBadges({ hasVerified, hasPartial, hasAnyProductData }),
     competitors: competitors.length ? competitors : empty.competitors,
     excludedCompetitors: [],
+    searchLogs,
+    selectedCount: competitors.length,
     aiAnalysis: empty.aiAnalysis,
     finance: createFinanceStats(),
     message,
@@ -528,7 +669,7 @@ function createCategoryProfile(keyword: string): CategoryProfile {
     return {
       baseCategory: "와이드 슬랙스",
       categoryLock: "슬랙스/팬츠/바지 상품만 허용",
-      allowedKeywordExpansion: ["와이드 슬랙스", "여성 와이드 슬랙스", "여름 와이드 슬랙스", "린넨 와이드 팬츠", "밴딩 와이드 팬츠", "여성 와이드 팬츠", "쿨 와이드 팬츠"],
+      allowedKeywordExpansion: ["여름 와이드 슬랙스", "여성 와이드 슬랙스", "와이드 슬랙스", "여름 슬랙스", "여성 슬랙스", "와이드 팬츠", "여름 팬츠", "팬츠"],
       requiredAnyTerms: ["슬랙스", "팬츠", "바지", "와이드팬츠", "와이드 슬랙스", "여성 슬랙스", "여름 슬랙스", "밴딩 슬랙스", "린넨 슬랙스"],
       requiredAllTerms: [],
       excludedTerms: ["운동화", "신발", "원피스", "상의", "티셔츠", "나시", "망고나시", "민소매", "브라", "속옷", "가방", "모자", "치마레깅스", "치마바지", "레깅스", "후드", "맨투맨", "블라우스", "니트"],
@@ -587,6 +728,22 @@ function createCategoryProfile(keyword: string): CategoryProfile {
     requiredAllTerms: [],
     excludedTerms: ["후드", "맨투맨"],
   };
+}
+
+function mapRouteSlugToKoreanKeyword(value: string) {
+  const normalized = value.trim();
+  const key = normalized.toLowerCase().replace(/_/g, "-").replace(/\s+/g, "-");
+  const mapping: Record<string, string> = {
+    "wide-slacks": "여름 와이드 슬랙스",
+    "wide-slack": "여름 와이드 슬랙스",
+    "wide-pants": "와이드 팬츠",
+    "cool-inner": "냉감 티셔츠",
+    "skirt-pants": "치마바지",
+    "linen-setup": "린넨 셋업",
+    "long-skirt": "롱스커트",
+  };
+
+  return mapping[key] || normalized;
 }
 
 function isSameCategoryCompetitor(productName: string, categoryProfile: CategoryProfile) {
