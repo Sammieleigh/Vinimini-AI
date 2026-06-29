@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import type { CoupangOpportunity } from "@/lib/types";
 import { SectionHeading, SourceLimitedNotice } from "./PlanningPrimitives";
@@ -77,6 +78,7 @@ type MarketResearchResult = {
     }>;
     zeroStage: string;
     finalSelectedTop10: Array<{ productName: string; productUrl: string; relevanceScore: number; researchSource: string }>;
+    finalUrlStrings: string[];
     pipeline: {
       promptSent: number;
       responseReceived: number;
@@ -217,9 +219,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                   <td className="px-4 py-4">{formatSourceValue(competitor.seller)}</td>
                   <td className="px-4 py-4">
                     {competitor.productUrl ? (
-                      <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-4">
-                        쿠팡 상품 열기
-                      </a>
+                      <CoupangProductLink href={competitor.productUrl} label="쿠팡 상품 열기" className="font-semibold underline underline-offset-4" />
                     ) : (
                     "SOURCE LIMITED"
                     )}
@@ -262,9 +262,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
               </div>
               <h3 className="mt-2 text-lg font-semibold">
                 {competitor.productUrl ? (
-                  <a href={competitor.productUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">
-                    {competitor.productName}
-                  </a>
+                  <CoupangProductLink href={competitor.productUrl} label={competitor.productName} className="underline underline-offset-4" />
                 ) : (
                   competitor.productName
                 )}
@@ -319,9 +317,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                 </div>
                 <p className="text-xs font-semibold text-[#625B53]">관련도 {item.relevanceScore}점</p>
                 {item.productUrl ? (
-                  <a href={item.productUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold underline underline-offset-4">
-                    쿠팡 상품 열기
-                  </a>
+                  <CoupangProductLink href={item.productUrl} label="쿠팡 상품 열기" className="text-xs font-semibold underline underline-offset-4" />
                 ) : (
                   <span className="text-xs text-[#8A8277]">링크 근거 부족</span>
                 )}
@@ -463,6 +459,18 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
                   ))}
                 </div>
               </div>
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">최종 URL 문자열</p>
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">
+                  {JSON.stringify(research.debug.finalUrlStrings, null, 2)}
+                </pre>
+              </div>
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A8277]">링크 클릭 Debug</p>
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words border border-[#E5DED5] bg-white p-2 text-xs leading-5">
+                  {JSON.stringify(createCoupangLinkDebugRows(competitors), null, 2)}
+                </pre>
+              </div>
             </div>
           ) : null}
         </div>
@@ -471,6 +479,41 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
       <SourceLimitedNotice />
     </div>
   );
+}
+
+function CoupangProductLink({ href, label, className = "" }: { href: string; label: string; className?: string }) {
+  const finalHref = normalizeExternalCoupangHref(href);
+
+  return (
+    <a href={finalHref} target="_blank" rel="noopener noreferrer" onClick={(event) => openExternalCoupangLink(event, finalHref)} className={className}>
+      {label}
+    </a>
+  );
+}
+
+function openExternalCoupangLink(event: MouseEvent<HTMLAnchorElement>, finalHref: string) {
+  const openedWindow = window.open(finalHref, "_blank", "noopener,noreferrer");
+  if (!openedWindow) return;
+
+  event.preventDefault();
+  openedWindow.opener = null;
+}
+
+function normalizeExternalCoupangHref(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  return trimmed.replace(/^http:\/\//i, "https://");
+}
+
+function createCoupangLinkDebugRows(competitors: MarketResearchCompetitor[]) {
+  return competitors.map((competitor) => ({
+    productName: competitor.productName,
+    finalHref: normalizeExternalCoupangHref(competitor.productUrl),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    clickEventMethod: 'window.open(url, "_blank", "noopener,noreferrer"); fallback: a[target="_blank"]',
+  }));
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

@@ -95,6 +95,7 @@ export type MarketResearchResult = {
     }>;
     zeroStage: string;
     finalSelectedTop10: Array<{ productName: string; productUrl: string; relevanceScore: number; researchSource: ResearchSource }>;
+    finalUrlStrings: string[];
     pipeline: {
       promptSent: number;
       responseReceived: number;
@@ -350,6 +351,7 @@ export async function runOpenAiMarketResearch({
         relevanceScore: item.relevanceScore,
         researchSource: item.researchSource,
       }));
+      debug.finalUrlStrings = competitors.map((item) => item.productUrl);
     }
     const aiAnalysis = competitors.length ? parsed.aiAnalysis : createEmptyResearch(categoryProfile).aiAnalysis;
     const result: MarketResearchResult = {
@@ -449,7 +451,7 @@ function sanitizeCompetitors(items: Array<Partial<MarketResearchCompetitor>>, ca
       seller: toDisplayValue(item.seller, SOURCE_LIMITED_KO),
       shippingInfo: toDisplayValue(item.shippingInfo, SOURCE_LIMITED_KO),
       rocketDelivery: toDisplayValue(item.rocketDelivery, SOURCE_LIMITED_KO),
-      productUrl: toDisplayValue(item.productUrl, ""),
+      productUrl: normalizeFinalCoupangProductUrl(toDisplayValue(item.productUrl, "")),
       thumbnailUrl: toDisplayValue(item.thumbnailUrl, ""),
       sellingPoints: sanitizeKoreanList(item.sellingPoints, [MORE_DATA_REQUIRED_KO]),
       thumbnailFeatures: sanitizeKoreanList(item.thumbnailFeatures, [MORE_DATA_REQUIRED_KO]),
@@ -468,8 +470,8 @@ function sanitizeCompetitors(items: Array<Partial<MarketResearchCompetitor>>, ca
 }
 
 function hasCandidateEvidence(item: Partial<MarketResearchCompetitor>) {
-  const productUrl = toDisplayValue(item.productUrl, "");
-  return hasUsableValue(item.productName) && productUrl.includes("coupang.com/vp/products") && !isSuspiciousPlaceholderUrl(productUrl);
+  const productUrl = normalizeFinalCoupangProductUrl(toDisplayValue(item.productUrl, ""));
+  return hasUsableValue(item.productName) && Boolean(productUrl) && !isSuspiciousPlaceholderUrl(productUrl);
 }
 
 function isSuspiciousPlaceholderUrl(url: string) {
@@ -493,7 +495,7 @@ function mapPartnerProductsToCompetitors(products: PartnerProduct[], categoryPro
       seller: SOURCE_LIMITED_KO,
       shippingInfo: SOURCE_LIMITED_KO,
       rocketDelivery: SOURCE_LIMITED_KO,
-      productUrl: product.productUrl || "",
+      productUrl: normalizeFinalCoupangProductUrl(product.productUrl || ""),
       thumbnailUrl: product.image || "",
       sellingPoints: sanitizeKoreanList([product.brand, product.category].filter((item) => item && item !== SOURCE_LIMITED_KO), ["쿠팡 공식 상품 검색에서 확인된 동일 카테고리 상품입니다."]),
       thumbnailFeatures: product.image ? ["대표 이미지가 확인되었습니다."] : [SOURCE_LIMITED_KO],
@@ -597,7 +599,7 @@ function mapNaverSearchProductsToCompetitors(products: NaverCoupangSearchProduct
     seller: product.seller || SOURCE_LIMITED_KO,
     shippingInfo: product.shippingInfo || SOURCE_LIMITED_KO,
     rocketDelivery: product.rocketDelivery || SOURCE_LIMITED_KO,
-    productUrl: product.productUrl || "",
+    productUrl: normalizeFinalCoupangProductUrl(product.productUrl || ""),
     thumbnailUrl: product.thumbnailUrl || "",
     sellingPoints: sanitizeKoreanList(
       [
@@ -639,7 +641,7 @@ function mapPublicSearchProductsToCompetitors(products: CoupangSearchProduct[], 
       seller: product.sellerName || SOURCE_LIMITED_KO,
       shippingInfo: product.isRocket ? "로켓배송" : product.isRocketGrowth ? "로켓그로스" : SOURCE_LIMITED_KO,
       rocketDelivery: product.isRocket ? "로켓배송" : product.isRocketGrowth ? "로켓그로스" : SOURCE_LIMITED_KO,
-      productUrl: product.productUrl || "",
+      productUrl: normalizeFinalCoupangProductUrl(product.productUrl || ""),
       thumbnailUrl: product.thumbnail || "",
       sellingPoints: sanitizeKoreanList([product.category, product.recommendation].filter(Boolean), ["쿠팡 공개 검색에서 확인된 상품입니다."]),
       thumbnailFeatures: product.thumbnail ? ["대표 이미지가 확인되었습니다."] : [SOURCE_LIMITED_KO],
@@ -1159,6 +1161,7 @@ function createResearchDebug(dailyLimit: number, modelName: string): NonNullable
     openAiSearchAttempts: [],
     zeroStage: "대기 중",
     finalSelectedTop10: [],
+    finalUrlStrings: [],
     pipeline: {
       promptSent: 0,
       responseReceived: 0,
@@ -1206,6 +1209,11 @@ function normalizeText(value: string) {
 
 function extractCoupangProductId(url: string) {
   return url.match(/\/vp\/products\/(\d+)/)?.[1] || "";
+}
+
+function normalizeFinalCoupangProductUrl(url: string) {
+  const productId = extractCoupangProductId(url);
+  return productId ? `https://www.coupang.com/vp/products/${productId}` : "";
 }
 
 function calculateMergeRate(candidateCount: number, mergedCount: number) {
