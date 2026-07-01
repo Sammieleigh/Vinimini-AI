@@ -13,6 +13,7 @@ const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_DAILY_LIMIT = 100;
 const DEFAULT_TTL_HOURS = 24;
 const DEVELOPMENT_DAILY_LIMIT = 1_000_000;
+const OPENAI_ANALYSIS_TIMEOUT_MS = 15_000;
 const MORE_DATA_REQUIRED_KO = "추가 데이터 필요";
 const SOURCE_LIMITED_KO = "근거 부족";
 const WIDE_SLACKS_EMPTY_MESSAGE = "동일 카테고리 경쟁상품 데이터를 불러오지 못했습니다. 키워드를 조정해 다시 리서치하세요.";
@@ -293,6 +294,7 @@ export async function runOpenAiMarketResearch({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestJson),
+      signal: AbortSignal.timeout(OPENAI_ANALYSIS_TIMEOUT_MS),
     });
 
     if (!response.ok) throw new Error(`OpenAI Market Research failed: ${response.status}`);

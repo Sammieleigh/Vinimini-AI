@@ -4,7 +4,8 @@ const NAVER_WEB_SEARCH_URL = "https://openapi.naver.com/v1/search/webkr.json";
 const NAVER_SHOPPING_SEARCH_URL = "https://openapi.naver.com/v1/search/shop.json";
 const SOURCE_LIMITED_KO = "근거 부족";
 const MAX_RAW_CANDIDATES = 120;
-const MAX_ENRICHMENT_QUERIES = 40;
+const MAX_ENRICHMENT_QUERIES = 8;
+const NAVER_FETCH_TIMEOUT_MS = 8_000;
 
 type NaverWebSearchResponse = {
   items?: Array<{
@@ -61,11 +62,12 @@ export async function fetchNaverCoupangSearchProducts(keywords: string[]): Promi
   try {
     const rawProducts: NaverCoupangSearchProduct[] = [];
 
-    const webResults = await Promise.allSettled(normalizedKeywords.map((keyword) => fetchNaverWebCoupangProducts(keyword, headers)));
-    rawProducts.push(...webResults.flatMap((result) => (result.status === "fulfilled" ? result.value : [])));
-
-    const shoppingResults = await Promise.allSettled(normalizedKeywords.map((keyword) => fetchNaverShoppingCoupangProducts(keyword, headers)));
+    const [shoppingResults, webResults] = await Promise.all([
+      Promise.allSettled(normalizedKeywords.map((keyword) => fetchNaverShoppingCoupangProducts(keyword, headers))),
+      Promise.allSettled(normalizedKeywords.map((keyword) => fetchNaverWebCoupangProducts(keyword, headers))),
+    ]);
     rawProducts.push(...shoppingResults.flatMap((result) => (result.status === "fulfilled" ? result.value : [])));
+    rawProducts.push(...webResults.flatMap((result) => (result.status === "fulfilled" ? result.value : [])));
 
     const enrichedProducts = await enrichWebProductsWithShopping(rawProducts, headers);
 
@@ -97,7 +99,7 @@ async function fetchNaverWebCoupangProducts(keyword: string, headers: NaverSearc
   url.searchParams.set("display", "20");
   url.searchParams.set("start", "1");
 
-  const response = await fetch(url.toString(), { headers, next: { revalidate: 3600 } });
+  const response = await fetch(url.toString(), { headers, next: { revalidate: 3600 }, signal: AbortSignal.timeout(NAVER_FETCH_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Naver Web Search failed: ${response.status}`);
 
   const payload = (await response.json()) as NaverWebSearchResponse;
@@ -113,7 +115,7 @@ async function fetchNaverShoppingCoupangProducts(keyword: string, headers: Naver
   url.searchParams.set("start", "1");
   url.searchParams.set("sort", "sim");
 
-  const response = await fetch(url.toString(), { headers, next: { revalidate: 3600 } });
+  const response = await fetch(url.toString(), { headers, next: { revalidate: 3600 }, signal: AbortSignal.timeout(NAVER_FETCH_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Naver Shopping Search failed: ${response.status}`);
 
   const payload = (await response.json()) as NaverShoppingSearchResponse;
@@ -126,10 +128,12 @@ async function enrichWebProductsWithShopping(products: NaverCoupangSearchProduct
   const webProductsNeedingEnrichment = products
     .filter((product) => product.sourceType === "Naver Web Search")
     .filter((product) => !hasUsableValue(product.price) || !hasUsableValue(product.thumbnailUrl))
+    .sort((a, b) => getReviewVolumeScore(b) - getReviewVolumeScore(a))
     .slice(0, MAX_ENRICHMENT_QUERIES);
   const shoppingProductsNeedingReview = products
     .filter((product) => product.sourceType === "Naver Shopping Search")
     .filter((product) => !hasUsableValue(product.reviewCount) || !hasUsableValue(product.rating))
+    .sort((a, b) => getReviewVolumeScore(b) - getReviewVolumeScore(a))
     .slice(0, MAX_ENRICHMENT_QUERIES);
 
   const enrichmentResults = await Promise.all(
@@ -186,7 +190,7 @@ async function fetchNaverShoppingSignals(keyword: string, headers: NaverSearchHe
   url.searchParams.set("start", "1");
   url.searchParams.set("sort", "sim");
 
-  const response = await fetch(url.toString(), { headers, next: { revalidate: 3600 } });
+  const response = await fetch(url.toString(), { headers, next: { revalidate: 3600 }, signal: AbortSignal.timeout(NAVER_FETCH_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Naver Shopping Enrichment failed: ${response.status}`);
 
   const payload = (await response.json()) as NaverShoppingSearchResponse;
@@ -313,6 +317,11 @@ function stripHtml(value: string) {
 
 function hasUsableValue(value: string) {
   return Boolean(value.trim()) && value !== SOURCE_LIMITED_KO && value !== "-";
+}
+
+function getReviewVolumeScore(product: NaverCoupangSearchProduct) {
+  const reviewCount = Number(product.reviewCount.replace(/[^0-9]/g, ""));
+  return Number.isFinite(reviewCount) ? reviewCount : 0;
 }
 
 function calculateNameSimilarity(a: string, b: string) {

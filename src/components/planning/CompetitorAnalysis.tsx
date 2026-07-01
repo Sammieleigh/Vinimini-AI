@@ -114,6 +114,8 @@ type MarketResearchResult = {
   lastAnalyzedAt: string | null;
 };
 
+const MARKET_RESEARCH_CLIENT_TIMEOUT_MS = 25_000;
+
 export function CompetitorAnalysis({ product }: { product: CoupangOpportunity }) {
   const [research, setResearch] = useState<MarketResearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,12 +126,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
     if (showLoading) setError("");
 
     try {
-      const params = new URLSearchParams({ keyword: product.productName, url: product.productUrl || "" });
-      if (forceRefresh) params.set("forceRefresh", "true");
-      const response = await fetch(`/api/openai/market-research?${params.toString()}`);
-      const payload = (await response.json()) as MarketResearchResult & { message?: string };
-      if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
-      setResearch(payload);
+      setResearch(await fetchMarketResearch(product, forceRefresh));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "OpenAI 쿠팡 경쟁상품 리서치를 완료하지 못했습니다.");
     } finally {
@@ -142,10 +139,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
 
     async function loadInitialResearch() {
       try {
-        const params = new URLSearchParams({ keyword: product.productName, url: product.productUrl || "" });
-        const response = await fetch(`/api/openai/market-research?${params.toString()}`);
-        const payload = (await response.json()) as MarketResearchResult & { message?: string };
-        if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
+        const payload = await fetchMarketResearch(product);
         if (isMounted) setResearch(payload);
       } catch (nextError) {
         if (isMounted) setError(nextError instanceof Error ? nextError.message : "OpenAI 쿠팡 경쟁상품 리서치를 완료하지 못했습니다.");
@@ -158,7 +152,7 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
     return () => {
       isMounted = false;
     };
-  }, [product.id, product.productName, product.productUrl]);
+  }, [product]);
 
   const competitors = research?.competitors ?? [];
 
@@ -479,6 +473,23 @@ export function CompetitorAnalysis({ product }: { product: CoupangOpportunity })
       <SourceLimitedNotice />
     </div>
   );
+}
+
+async function fetchMarketResearch(product: CoupangOpportunity, forceRefresh = false) {
+  const params = new URLSearchParams({ keyword: product.productName, url: product.productUrl || "" });
+  if (forceRefresh) params.set("forceRefresh", "true");
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), MARKET_RESEARCH_CLIENT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`/api/openai/market-research?${params.toString()}`, { signal: controller.signal });
+    const payload = (await response.json()) as MarketResearchResult & { message?: string };
+    if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
+    return payload;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 function CoupangProductLink({ href, label, className = "" }: { href: string; label: string; className?: string }) {
