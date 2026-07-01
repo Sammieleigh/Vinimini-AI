@@ -27,26 +27,27 @@ const ko = {
 };
 
 const tabs = [
-  "\uACBD\uC601\uC9C4 \uC694\uC57D",
-  "AI \uD68C\uC758\uB85D",
-  "\uACBD\uC7C1\uC0AC \uBD84\uC11D",
-  "\uB9AC\uBDF0 \uBD88\uB9CC TOP5",
-  "\uC378\uB124\uC77C \uC81C\uC548",
-  "\uC0C1\uC138\uD398\uC774\uC9C0 \uC81C\uC548",
-  "\uAC00\uACA9 \uC804\uB7B5",
-  "\uB9AC\uC2A4\uD06C",
-  "\uC608\uC0C1 \uACB0\uACFC",
-  "CEO \uC2E4\uD589 \uC81C\uC548",
-  "AI \uD559\uC2B5 \uB178\uD2B8",
-  "\uD68C\uC758 \uAE30\uB85D",
+  { id: "summary", label: "\uACBD\uC601\uC9C4 \uC694\uC57D" },
+  { id: "discussion", label: "AI \uD68C\uC758\uB85D" },
+  { id: "competitor", label: "\uACBD\uC7C1\uC0AC \uBD84\uC11D" },
+  { id: "reviews", label: "\uB9AC\uBDF0 \uBD88\uB9CC TOP5" },
+  { id: "thumbnail", label: "\uC378\uB124\uC77C \uC81C\uC548" },
+  { id: "detail-page", label: "\uC0C1\uC138\uD398\uC774\uC9C0 \uC81C\uC548" },
+  { id: "pricing", label: "\uAC00\uACA9 \uC804\uB7B5" },
+  { id: "risk", label: "\uB9AC\uC2A4\uD06C" },
+  { id: "expected-result", label: "\uC608\uC0C1 \uACB0\uACFC" },
+  { id: "ceo-action", label: "CEO \uC2E4\uD589 \uC81C\uC548" },
+  { id: "learning", label: "AI \uD559\uC2B5 \uB178\uD2B8" },
+  { id: "history", label: "\uD68C\uC758 \uAE30\uB85D" },
 ] as const;
 
-type PlanningTab = (typeof tabs)[number];
+type PlanningTabId = (typeof tabs)[number]["id"];
 
-export function PlanningRoom({ product }: { product: CoupangOpportunity }) {
-  const [activeTab, setActiveTab] = useState<PlanningTab>(tabs[0]);
+export function PlanningRoom({ product, initialTab }: { product: CoupangOpportunity; initialTab?: string }) {
+  const [activeTab, setActiveTab] = useState<PlanningTabId>(() => getPlanningTabId(initialTab));
   const sourceStatus = product.dataSource === "coupang" ? ko.coupangSource : ko.limitedSource;
   const activePanel = useMemo(() => renderPlanningTab(activeTab, product), [activeTab, product]);
+  const activateTab = (tab: PlanningTabId) => setActiveTab(tab);
 
   return (
     <main className="min-h-screen bg-[#F4EFE7] text-[#111111]">
@@ -69,18 +70,20 @@ export function PlanningRoom({ product }: { product: CoupangOpportunity }) {
         <nav className="overflow-x-auto border border-[#D9D0C4] bg-white p-2">
           <div className="flex gap-2">
             {tabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
+              <a
+                key={tab.id}
+                href={`/planning/${product.id}?tab=${tab.id}`}
+                onPointerDown={() => activateTab(tab.id)}
+                onClick={() => activateTab(tab.id)}
+                aria-current={activeTab === tab.id ? "page" : undefined}
                 className={`shrink-0 border px-4 py-3 text-sm font-semibold transition ${
-                  activeTab === tab
+                  activeTab === tab.id
                     ? "border-[#111111] bg-[#111111] text-[#F4EFE7]"
                     : "border-[#D9D0C4] bg-[#FBFAF7] text-[#625B53] hover:border-[#111111]"
                 }`}
               >
-                {tab}
-              </button>
+                {tab.label}
+              </a>
             ))}
           </div>
         </nav>
@@ -91,31 +94,35 @@ export function PlanningRoom({ product }: { product: CoupangOpportunity }) {
   );
 }
 
-function renderPlanningTab(activeTab: PlanningTab, product: CoupangOpportunity) {
+function getPlanningTabId(tab?: string): PlanningTabId {
+  return tabs.find((item) => item.id === tab)?.id ?? "summary";
+}
+
+function renderPlanningTab(activeTab: PlanningTabId, product: CoupangOpportunity) {
   switch (activeTab) {
-    case tabs[0]:
+    case "summary":
       return <ExecutiveSummary product={product} />;
-    case tabs[1]:
+    case "discussion":
       return <AIDiscussion product={product} />;
-    case tabs[2]:
+    case "competitor":
       return <CompetitorAnalysis product={product} />;
-    case tabs[3]:
+    case "reviews":
       return <ReviewComplaints product={product} />;
-    case tabs[4]:
+    case "thumbnail":
       return <ThumbnailProposal product={product} />;
-    case tabs[5]:
+    case "detail-page":
       return <DetailPageProposal product={product} />;
-    case tabs[6]:
+    case "pricing":
       return <Pricing product={product} />;
-    case tabs[7]:
+    case "risk":
       return <RiskAnalysis product={product} />;
-    case tabs[8]:
+    case "expected-result":
       return <ExpectedResult product={product} />;
-    case tabs[9]:
+    case "ceo-action":
       return <CEORecommendation product={product} />;
-    case tabs[10]:
+    case "learning":
       return <LearningNote product={product} />;
-    case tabs[11]:
+    case "history":
       return <MeetingHistory product={product} />;
   }
 }
